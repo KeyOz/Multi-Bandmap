@@ -85,7 +85,7 @@ const BandColumn: React.FC<BandColumnProps> = ({
         block: 'center',
       });
     }
-  }, [closestSpotId, config.currentFrequency, spots]);
+  }, [closestSpotId, config.currentFrequency]);
 
   return (
     <motion.div 
@@ -226,6 +226,14 @@ export default function App() {
   const consoleRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
+  const retentionHoursRef = useRef(4);
+
+  // Update ref when config changes
+  useEffect(() => {
+    if (config?.retentionHours) {
+      retentionHoursRef.current = config.retentionHours;
+    }
+  }, [config?.retentionHours]);
 
   // Persistence
   useEffect(() => {
@@ -254,7 +262,7 @@ export default function App() {
         setReceivedChars(data.charCount);
       } else if (data.type === "spot:new") {
         setSpots(prev => {
-          const hours = config?.retentionHours || 4;
+          const hours = retentionHoursRef.current;
           const cutoff = Date.now() - (hours * 60 * 60 * 1000);
           return [...prev.filter(s => new Date(s.timestamp).getTime() > cutoff), data.spot];
         });
@@ -278,7 +286,7 @@ export default function App() {
     };
 
     return () => ws.close();
-  }, [config?.retentionHours]);
+  }, []);
 
   // Auto-scroll console
   useEffect(() => {
