@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-bg: #0A0C10;
+  --color-brand-surface: #161B22;
+  --color-brand-elevated: #21262D;
+  --color-brand-border: #30363D;
+  --color-brand-accent: #38BDF8;
+  --color-text-dim: #8B949E;
+  --color-text-main: #E2E8F0;
+}
+
+@layer base {
+  body {
+    @apply bg-brand-bg text-text-main font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-brand-border rounded-full hover:bg-brand-accent transition-colors;
+  }
+  
+  .scrollbar-thumb-brand-accent::-webkit-scrollbar-thumb {
+    @apply bg-brand-accent/50;
+  }
+}
+

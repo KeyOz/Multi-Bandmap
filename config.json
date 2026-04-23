@@ -1,0 +1,40 @@
+{
+  "columns": [
+    {
+      "id": "col1",
+      "title": "Station 2m",
+      "band": "2m",
+      "visible": true,
+      "currentFrequency": 144.258
+    },
+    {
+      "id": "col2",
+      "title": "Station 70cm",
+      "band": "70cm",
+      "visible": true
+    },
+    {
+      "id": "col3",
+      "title": "Kanal 3",
+      "band": "23cm",
+      "visible": true,
+      "currentFrequency": 7.132
+    },
+    {
+      "id": "col4",
+      "title": "Kanal 4",
+      "band": "15m",
+      "visible": true
+    },
+    {
+      "id": "col5",
+      "title": "Kanal 5",
+      "band": "20m",
+      "visible": true,
+      "currentFrequency": 14.099
+    }
+  ],
+  "bottomAreaVisible": false,
+  "retentionHours": 38,
+  "autoBandSwitch": true
+}
