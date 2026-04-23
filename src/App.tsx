@@ -374,7 +374,7 @@ export default function App() {
     <div className="h-screen bg-brand-bg flex items-center justify-center font-mono text-[11px] uppercase tracking-[0.2em] text-brand-accent">
       <div className="flex items-center gap-3">
         <Radio size={20} className="animate-spin" />
-        BOOTING DX-CONTROL SYSTEM v1.0...
+        BOOTING MULTI-BANDMAP SYSTEM v0.2.3...
       </div>
     </div>
   );
@@ -386,13 +386,13 @@ export default function App() {
         <div className="flex items-center gap-5">
           <div className="flex items-center gap-2">
             <Radio size={16} className="text-brand-accent" />
-            <h1 className="font-bold tracking-widest text-brand-accent uppercase text-[13px]">DX-CONTROL <span className="text-white opacity-80">MASTER</span></h1>
+            <div className="flex items-baseline gap-1.5">
+              <h1 className="font-bold tracking-widest text-brand-accent uppercase text-[13px]">Multi-Bandmap</h1>
+              <span className="text-[9px] font-mono text-text-dim opacity-60">v0.2.3</span>
+            </div>
           </div>
           
           <nav className="flex items-center gap-1">
-            <button className="text-[12px] px-3 py-1 rounded text-text-dim hover:bg-brand-elevated hover:text-text-main transition-all">Datei</button>
-            <button className="text-[12px] px-3 py-1 rounded text-text-dim hover:bg-brand-elevated hover:text-text-main transition-all">Bearbeiten</button>
-            
             <div className="relative">
               <button 
                 onClick={() => setShowAnzeigeMenu(!showAnzeigeMenu)}
@@ -487,6 +487,45 @@ export default function App() {
                       className="w-full accent-brand-accent h-1.5 bg-brand-elevated rounded-lg appearance-none cursor-pointer"
                     />
                     <div className="text-[9px] text-text-dim italic">Erhöht die Dauer, wie lange DX-Spots im Cache verbleiben.</div>
+                  </div>
+
+                  <div className="space-y-2 pt-2 border-t border-brand-border">
+                    <div className="text-[10px] uppercase font-bold text-text-dim flex items-center gap-1.5 pb-1">
+                      <Radio size={12} /> Cluster-Settings
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-text-dim">Host / URL</label>
+                      <input 
+                        type="text"
+                        className="w-full bg-brand-elevated border border-brand-border rounded px-2 py-1 text-[11px] text-white focus:border-brand-accent outline-none"
+                        value={config.clusterHost || ""}
+                        onChange={(e) => setConfig({...config, clusterHost: e.target.value})}
+                        onBlur={() => saveConfig(config)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-text-dim">Port</label>
+                        <input 
+                          type="number"
+                          className="w-full bg-brand-elevated border border-brand-border rounded px-2 py-1 text-[11px] text-white focus:border-brand-accent outline-none"
+                          value={config.clusterPort || ""}
+                          onChange={(e) => setConfig({...config, clusterPort: parseInt(e.target.value) || 0})}
+                          onBlur={() => saveConfig(config)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-text-dim">Login (optional)</label>
+                        <input 
+                          type="text"
+                          className="w-full bg-brand-elevated border border-brand-border rounded px-2 py-1 text-[11px] text-white focus:border-brand-accent outline-none"
+                          value={config.clusterCallsign || ""}
+                          onChange={(e) => setConfig({...config, clusterCallsign: e.target.value.toUpperCase()})}
+                          onBlur={() => saveConfig(config)}
+                          placeholder="z.B. DF0OT"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-2 pt-2 border-t border-brand-border">
@@ -612,9 +651,17 @@ export default function App() {
                 {clusterLines.length === 0 ? (
                   <div className="text-gray-700 italic">Warte auf Cluster-Daten...</div>
                 ) : (
-                  clusterLines.map((line, idx) => (
-                    <div key={idx} className="whitespace-pre-wrap">{line}</div>
-                  ))
+                  clusterLines.map((line, idx) => {
+                    const isStatusLine = !line.startsWith('DX de') && !line.startsWith('# DX de');
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`whitespace-pre-wrap ${isStatusLine ? 'text-yellow-500 opacity-90' : 'text-[#10B981]'}`}
+                      >
+                        {line}
+                      </div>
+                    );
+                  })
                 )}
                 <div ref={bottomRef} className="h-0" />
                 <div className="animate-pulse">_</div>
@@ -629,15 +676,13 @@ export default function App() {
         <div className="flex gap-4 items-center">
           <span className="flex items-center gap-1.5">
             <span className={`w-1.5 h-1.5 rounded-full ${clusterStatus === 'CONNECTED' ? 'bg-green-500' : 'bg-red-500'}`}></span> 
-            DX-CLUSTER: {clusterStatus}
+            DX-CLUSTER: {clusterStatus} ({config?.clusterHost})
           </span>
-          <span>DF0OT</span>
-          <span>DX_SPOTS: {spots.length}</span>
-          <span>CHAR_RX: {receivedChars.toLocaleString()} bytes</span>
+          <span className="text-brand-accent">{config?.clusterCallsign || 'GUEST'}</span>
+          <span>DX-SPOTS: {spots.length}</span>
         </div>
         <div className="flex gap-4">
-          <span>BUFF: 100%</span>
-          <span>© AIS DX-CONTROL 2026</span>
+          <span>© 2025-2026 by DD6ZJ</span>
         </div>
       </footer>
 

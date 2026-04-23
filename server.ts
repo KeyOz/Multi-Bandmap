@@ -34,12 +34,27 @@ async function startServer() {
     ],
     bottomAreaVisible: true,
     retentionHours: 4,
-    autoBandSwitch: true
+    autoBandSwitch: true,
+    clusterHost: "dx.da0bcc.de",
+    clusterPort: 7300,
+    clusterCallsign: "DF0OT"
   };
 
   if (!fs.existsSync(CONFIG_FILE)) {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(defaultConfig, null, 2));
   }
+
+  const loadConfig = () => {
+    try {
+      if (fs.existsSync(CONFIG_FILE)) {
+        const loaded = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf-8"));
+        return { ...defaultConfig, ...loaded };
+      }
+    } catch (e) {
+      console.error("Error loading config:", e);
+    }
+    return defaultConfig;
+  };
 
   let spots: any[] = [];
   if (fs.existsSync(SPOTS_FILE)) {
@@ -68,12 +83,8 @@ async function startServer() {
   };
 
   const getRetentionHours = () => {
-    try {
-      const config = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf-8"));
-      return config.retentionHours || 4;
-    } catch (e) {
-      return 4;
-    }
+    const config = loadConfig();
+    return config.retentionHours || 4;
   };
 
   const cleanupSpots = () => {
@@ -100,8 +111,22 @@ async function startServer() {
 
   app.post("/api/config", (req, res) => {
     try {
-      fs.writeFileSync(CONFIG_FILE, JSON.stringify(req.body, null, 2));
+      const oldConfig = loadConfig();
+      const newConfig = req.body;
+      
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(newConfig, null, 2));
       cleanupSpots(); // Run immediate cleanup if retention hours changed
+      
+      // If cluster settings changed, reconnect
+      if (
+        oldConfig.clusterHost !== newConfig.clusterHost ||
+        oldConfig.clusterPort !== newConfig.clusterPort ||
+        oldConfig.clusterCallsign !== newConfig.clusterCallsign
+      ) {
+        console.log("[SERVER] Cluster settings updated, reconnecting...");
+        connectToCluster();
+      }
+      
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Could not save config" });
@@ -262,6 +287,8 @@ async function startServer() {
   let charCount = 0;
   const consoleHistory: string[] = [];
   const MAX_CONSOLE_HISTORY = 100;
+  let activeClusterClient: net.Socket | null = null;
+  let reconnectTimeout: NodeJS.Timeout | null = null;
 
   const broadcast = (data: any) => {
     const msg = JSON.stringify(data);
@@ -273,15 +300,32 @@ async function startServer() {
   };
 
   const connectToCluster = () => {
+    if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    if (activeClusterClient) {
+      activeClusterClient.destroy();
+      activeClusterClient = null;
+    }
+
+    const config = loadConfig();
     clusterStatus = "CONNECTING";
     broadcast({ type: "status", status: clusterStatus });
 
-    const client = net.createConnection({ host: "dx.da0bcc.de", port: 7300 }, () => {
+    console.log(`Connecting to DX Cluster: ${config.clusterHost}:${config.clusterPort}`);
+    const client = net.createConnection({ host: config.clusterHost, port: config.clusterPort }, () => {
       console.log("Connected to DX Cluster");
       clusterStatus = "CONNECTED";
-      broadcast({ type: "status", status: clusterStatus });
-      client.write("DF0OT\r\n");
+      broadcast({ type: "status", status: clusterStatus, loginCall: config.clusterCallsign });
+      
+      const loginCall = config.clusterCallsign?.trim();
+      if (loginCall) {
+        console.log(`Logging in as ${loginCall}`);
+        client.write(`${loginCall}\r\n`);
+      } else {
+        console.log("No login callsign provided, skipping login command.");
+      }
     });
+
+    activeClusterClient = client;
 
     let clusterBuffer = "";
     client.on("data", (data) => {
@@ -336,7 +380,8 @@ async function startServer() {
       console.log("Disconnected from DX Cluster");
       clusterStatus = "DISCONNECTED";
       broadcast({ type: "status", status: clusterStatus });
-      setTimeout(connectToCluster, 5000); // Reconnect
+      activeClusterClient = null;
+      reconnectTimeout = setTimeout(connectToCluster, 5000); // Reconnect
     });
 
     client.on("error", (err) => {
@@ -344,7 +389,8 @@ async function startServer() {
       clusterStatus = "ERROR";
       broadcast({ type: "status", status: clusterStatus, error: err.message });
       client.destroy();
-      setTimeout(connectToCluster, 10000);
+      activeClusterClient = null;
+      reconnectTimeout = setTimeout(connectToCluster, 10000);
     });
   };
 

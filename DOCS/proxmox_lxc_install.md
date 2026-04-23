@@ -1,6 +1,6 @@
 # Installation in Proxmox LXC
 
-Diese Anleitung beschreibt die Installation der AIS DX-CONTROL Applikation in einem Proxmox LXC Container.
+Diese Anleitung beschreibt die Installation der Multi-Bandmap Applikation in einem Proxmox LXC Container.
 
 ## 1. LXC Container Erstellung
 Erstellen Sie in Proxmox einen neuen LXC Container mit folgenden empfohlenen Spezifikationen:
@@ -56,7 +56,7 @@ Erstellen Sie die Datei `/etc/systemd/system/dx-control.service`:
 
 ```ini
 [Unit]
-Description=AIS DX-CONTROL Application
+Description=Multi-Bandmap Application
 After=network.target
 
 [Service]

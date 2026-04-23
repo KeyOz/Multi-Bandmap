@@ -1,4 +1,4 @@
-# API Dokumentation - AIS DX-CONTROL
+# API Dokumentation - Multi-Bandmap
 
 Diese Dokumentation beschreibt die verfügbaren API-Endpunkte zur Fernsteuerung und Integration der Applikation.
 

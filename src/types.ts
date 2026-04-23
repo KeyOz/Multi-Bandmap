@@ -21,6 +21,9 @@ export interface AppConfig {
   bottomAreaVisible: boolean;
   retentionHours: number;
   autoBandSwitch: boolean;
+  clusterHost: string;
+  clusterPort: number;
+  clusterCallsign: string;
 }
 
 export const BAND_FREQUENCIES: Record<string, { min: number, max: number }> = {
