@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Data Persistence
+config.json
+spots.json
+worked_qsos.json

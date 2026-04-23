@@ -48,34 +48,39 @@ const BandColumn: React.FC<BandColumnProps> = ({
     setIsEditingTitle(false);
   };
 
-  const range = BAND_FREQUENCIES[config.band];
-  
-  // Deduplicate: Keep only the newest spot per DX callsing on this band
-  const spotMap = new Map<string, DxSpot>();
-  spots.forEach(s => {
-    if (s.frequency >= range.min && s.frequency <= range.max) {
-      const existing = spotMap.get(s.dxCall);
-      if (!existing || new Date(s.timestamp) > new Date(existing.timestamp)) {
-        spotMap.set(s.dxCall, s);
+  const filteredSpots = React.useMemo(() => {
+    const range = BAND_FREQUENCIES[config.band];
+    
+    // Deduplicate: Keep only the newest spot per DX callsing on this band
+    const spotMap = new Map<string, DxSpot>();
+    spots.forEach(s => {
+      if (s.frequency >= range.min && s.frequency <= range.max) {
+        const existing = spotMap.get(s.dxCall);
+        if (!existing || new Date(s.timestamp) > new Date(existing.timestamp)) {
+          spotMap.set(s.dxCall, s);
+        }
       }
-    }
-  });
+    });
 
-  const filteredSpots = Array.from(spotMap.values())
-    .sort((a, b) => a.frequency - b.frequency);
+    return Array.from(spotMap.values())
+      .sort((a, b) => a.frequency - b.frequency);
+  }, [spots, config.band]);
 
   // Find the spot closest to the current VFO frequency
-  let closestSpotId: string | null = null;
-  if (config.currentFrequency && filteredSpots.length > 0) {
+  const closestSpotId = React.useMemo(() => {
+    if (!config.currentFrequency || filteredSpots.length === 0) return null;
+    
+    let closestId: string | null = null;
     let minDiff = Infinity;
     filteredSpots.forEach(s => {
       const diff = Math.abs(s.frequency - (config.currentFrequency || 0));
       if (diff < minDiff) {
         minDiff = diff;
-        closestSpotId = s.dxCall;
+        closestId = s.dxCall;
       }
     });
-  }
+    return closestId;
+  }, [filteredSpots, config.currentFrequency]);
 
   // Auto-scroll logic: keep the active row in sight
   useEffect(() => {
