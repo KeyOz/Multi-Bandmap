@@ -13,25 +13,72 @@ import {
   Radio,
   Layers,
   History,
-  Clock
+  Clock,
+  ArrowUp,
+  Compass,
+  Palette
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-// --- Helpers ---
+// --- Color Helpers & Presets ---
+
+export const ACCENT_COLOR_PRESETS = [
+  { name: "Himmelblau", value: "#38bdf8" },
+  { name: "Smaragdgrün", value: "#10b981" },
+  { name: "Bernsteingelb", value: "#f59e0b" },
+  { name: "Neon-Orange", value: "#f97316" },
+  { name: "Rubinrot", value: "#f43f5e" },
+  { name: "Violett", value: "#a855f7" },
+  { name: "Indigo", value: "#6366f1" },
+  { name: "Türkis", value: "#14b8a6" },
+  { name: "Limettengrün", value: "#84cc16" },
+  { name: "Pink", value: "#ec4899" },
+  { name: "Goldgelb", value: "#eab308" },
+  { name: "Cyan", value: "#06b6d4" },
+];
+
+const DEFAULT_COLORS = ["#38bdf8", "#10b981", "#f59e0b", "#f43f5e", "#a855f7"];
+
+export const getColumnColor = (config: any, index?: number): string => {
+  if (config?.color) return config.color;
+  if (config?.id) {
+    const parsedIdx = parseInt(config.id.replace(/\D/g, ""), 10);
+    if (!isNaN(parsedIdx) && parsedIdx >= 1) {
+      return DEFAULT_COLORS[(parsedIdx - 1) % DEFAULT_COLORS.length];
+    }
+  }
+  return DEFAULT_COLORS[(index ?? 0) % DEFAULT_COLORS.length] || "#38bdf8";
+};
+
+export const hexToRgba = (hex?: string, alpha: number = 1): string => {
+  if (!hex) return `rgba(56, 189, 248, ${alpha})`;
+  let c = hex.replace("#", "").trim();
+  if (c.length === 3) {
+    c = c.split("").map(x => x + x).join("");
+  }
+  const num = parseInt(c, 16);
+  if (isNaN(num)) return `rgba(56, 189, 248, ${alpha})`;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 // --- Components ---
 
 interface BandColumnProps {
   config: any;
+  columnIndex?: number;
   spots: DxSpot[];
   workedQSOs: Record<string, string[]>;
   onUpdate: (id: string, updates: any) => void;
   onHide: (id: string) => void;
-  onHoverSpot: (spot: DxSpot | null, e?: React.MouseEvent) => void;
+  onHoverSpot: (spot: DxSpot | null, e?: React.MouseEvent, color?: string) => void;
 }
 
 const BandColumn: React.FC<BandColumnProps> = ({ 
   config, 
+  columnIndex,
   spots,
   workedQSOs,
   onUpdate, 
@@ -40,13 +87,32 @@ const BandColumn: React.FC<BandColumnProps> = ({
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(config.title);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeRowRef = useRef<HTMLTableRowElement>(null);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+
+  const accentColor = getColumnColor(config, columnIndex);
 
   const handleTitleSubmit = () => {
     onUpdate(config.id, { title: tempTitle });
     setIsEditingTitle(false);
   };
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
+        setShowColorPicker(false);
+      }
+    };
+    if (showColorPicker) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [showColorPicker]);
 
   const filteredSpots = React.useMemo(() => {
     const range = BAND_FREQUENCIES[config.band];
@@ -96,40 +162,136 @@ const BandColumn: React.FC<BandColumnProps> = ({
     <motion.div 
       layout
       className="flex flex-col h-full border-r border-brand-border bg-brand-bg relative flex-1 min-w-[200px] group"
+      style={{
+        borderTop: `3px solid ${accentColor}`
+      }}
     >
       {/* Column Header */}
-      <div className="flex items-center justify-between px-3 h-[36px] bg-brand-surface border-b border-brand-border">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
+      <div 
+        className="flex items-center justify-between px-2.5 h-[36px] bg-brand-surface border-b border-brand-border"
+        style={{
+          backgroundColor: hexToRgba(accentColor, 0.05)
+        }}
+      >
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <div 
+            className="w-2 h-2 rounded-full shrink-0 shadow-sm"
+            style={{ backgroundColor: accentColor, boxShadow: `0 0 6px ${hexToRgba(accentColor, 0.6)}` }}
+          />
           {isEditingTitle ? (
             <div className="flex items-center gap-1 w-full relative">
               <input 
                 autoFocus
-                className="bg-black/20 border border-brand-accent/50 text-[11px] px-1 w-full rounded outline-none"
+                className="bg-black/20 text-[11px] px-1.5 py-0.5 w-full rounded outline-none text-white font-bold"
+                style={{ border: `1px solid ${accentColor}` }}
                 value={tempTitle}
                 onChange={(e) => setTempTitle(e.target.value)}
                 onBlur={handleTitleSubmit}
                 onKeyDown={(e) => e.key === 'Enter' && handleTitleSubmit()}
               />
               <button onClick={handleTitleSubmit} className="text-green-500 hover:scale-110 transition-transform">
-                <Check size={10} />
+                <Check size={12} />
               </button>
             </div>
           ) : (
             <span 
-              className="text-[11px] font-bold uppercase tracking-wider text-text-dim truncate cursor-pointer hover:text-brand-accent hover:border-brand-accent border border-transparent px-1 rounded transition-colors"
+              className="text-[11px] font-bold uppercase tracking-wider text-text-dim truncate cursor-pointer px-1 rounded transition-colors"
+              style={{ color: '#ffffff' }}
+              title="Klicken zum Umbenennen"
               onClick={() => setIsEditingTitle(true)}
             >
               {config.title}
             </span>
           )}
         </div>
-        <button 
-          onClick={() => onHide(config.id)}
-          className="text-text-dim hover:text-red-400 hover:bg-red-400/10 transition-all p-1 rounded"
-          title="Ausblenden"
-        >
-          <X size={12} />
-        </button>
+
+        <div className="flex items-center gap-1 shrink-0 relative">
+          {/* Color Picker Button & Popover */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="w-5 h-5 rounded-md hover:bg-white/10 flex items-center justify-center transition-all p-0.5 group/color"
+              title="Akzentfarbe wählen"
+            >
+              <div 
+                className="w-3.5 h-3.5 rounded-full border border-white/30 shadow-sm transition-transform group-hover/color:scale-110"
+                style={{ backgroundColor: accentColor }}
+              />
+            </button>
+
+            <AnimatePresence>
+              {showColorPicker && (
+                <motion.div
+                  ref={colorPickerRef}
+                  initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                  className="absolute right-0 top-7 w-56 bg-brand-surface border border-brand-border rounded-lg shadow-2xl p-3 z-50 space-y-2.5 text-left"
+                >
+                  <div className="flex items-center justify-between border-b border-brand-border pb-1.5">
+                    <span className="text-[10px] uppercase font-bold text-text-dim flex items-center gap-1.5">
+                      <Palette size={12} style={{ color: accentColor }} /> Akzentfarbe
+                    </span>
+                    <button
+                      onClick={() => setShowColorPicker(false)}
+                      className="text-text-dim hover:text-white p-0.5 rounded hover:bg-white/5"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+
+                  <div>
+                    <div className="text-[9px] uppercase tracking-wider text-text-dim mb-1.5">Palette</div>
+                    <div className="grid grid-cols-6 gap-1.5">
+                      {ACCENT_COLOR_PRESETS.map((preset) => {
+                        const isSelected = accentColor.toLowerCase() === preset.value.toLowerCase();
+                        return (
+                          <button
+                            key={preset.value}
+                            onClick={() => {
+                              onUpdate(config.id, { color: preset.value });
+                              setShowColorPicker(false);
+                            }}
+                            className="w-6 h-6 rounded-md border transition-transform hover:scale-110 flex items-center justify-center relative shadow-sm"
+                            style={{
+                              backgroundColor: preset.value,
+                              borderColor: isSelected ? '#ffffff' : 'rgba(255,255,255,0.2)'
+                            }}
+                            title={preset.name}
+                          >
+                            {isSelected && <Check size={12} className="text-black font-extrabold stroke-[3]" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-brand-border pt-2 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-text-dim">Freie Farbwahl:</span>
+                    <div className="flex items-center gap-1.5 bg-brand-elevated border border-brand-border rounded px-2 py-0.5">
+                      <input
+                        type="color"
+                        value={accentColor}
+                        onChange={(e) => onUpdate(config.id, { color: e.target.value })}
+                        className="w-4 h-4 rounded cursor-pointer bg-transparent border-0 p-0"
+                        title="Farbwähler öffnen"
+                      />
+                      <span className="text-[10px] font-mono text-white/90 uppercase">{accentColor}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <button 
+            onClick={() => onHide(config.id)}
+            className="text-text-dim hover:text-red-400 hover:bg-red-400/10 transition-all p-1 rounded"
+            title="Ausblenden"
+          >
+            <X size={12} />
+          </button>
+        </div>
       </div>
 
       {/* Control Area */}
@@ -148,9 +310,22 @@ const BandColumn: React.FC<BandColumnProps> = ({
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-text-dim" size={14} />
           </div>
           {config.currentFrequency && (
-            <div className="mt-2 bg-brand-accent/10 border border-brand-accent/30 rounded py-1 px-2 flex items-center justify-between">
-              <span className="text-[9px] text-brand-accent font-bold uppercase tracking-tighter">VFO:</span>
-              <span className="text-[14px] text-white font-bold font-mono tracking-wider">{config.currentFrequency.toFixed(3)} <span className="text-[9px] opacity-60">MHz</span></span>
+            <div 
+              className="mt-2 rounded py-1 px-2 flex items-center justify-between"
+              style={{
+                backgroundColor: hexToRgba(accentColor, 0.12),
+                border: `1px solid ${hexToRgba(accentColor, 0.35)}`
+              }}
+            >
+              <span 
+                className="text-[9px] font-bold uppercase tracking-tighter"
+                style={{ color: accentColor }}
+              >
+                VFO:
+              </span>
+              <span className="text-[14px] text-white font-bold font-mono tracking-wider">
+                {config.currentFrequency.toFixed(3)} <span className="text-[9px] opacity-60">MHz</span>
+              </span>
             </div>
           )}
         </div>
@@ -164,18 +339,20 @@ const BandColumn: React.FC<BandColumnProps> = ({
         <table className="w-full border-collapse table-fixed">
           <thead>
             <tr className="text-text-dim border-b border-brand-border text-[10px] tracking-tighter">
-              <th className="text-left font-normal pb-2 w-[85px]">MHZ</th>
+              <th className="text-left font-normal pb-2 w-[75px]">MHZ</th>
               <th className="text-left font-normal pb-2">DX-STATION</th>
+              <th className="text-right font-normal pb-2 w-[145px]">LOC / ENTF. / RICHT.</th>
             </tr>
           </thead>
           <tbody className="text-gray-300">
             {filteredSpots.length === 0 ? (
               <tr>
-                <td colSpan={2} className="py-2 text-center text-text-dim/30 text-[11px] italic">Keine Spots in {config.band}</td>
+                <td colSpan={3} className="py-2 text-center text-text-dim/30 text-[11px] italic">Keine Spots in {config.band}</td>
               </tr>
             ) : (
               filteredSpots.map((item) => {
                 const isClosest = item.dxCall === closestSpotId;
+                const isHovered = hoveredRowId === item.dxCall;
                 const dxCountry = getCountryInfoByCallsign(item.dxCall);
                 const spotterCountry = getCountryInfoByCallsign(item.spotterCall);
                 const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -183,16 +360,43 @@ const BandColumn: React.FC<BandColumnProps> = ({
                     <tr 
                       key={item.dxCall} 
                       ref={isClosest ? activeRowRef : null}
-                      onMouseEnter={(e) => onHoverSpot(item, e)}
-                      onMouseLeave={() => onHoverSpot(null)}
-                      className={`transition-colors border-b border-white/[0.02] cursor-default group/row relative ${isClosest ? 'bg-brand-accent/20' : 'hover:bg-brand-accent/10'}`}
+                      onMouseEnter={(e) => {
+                        setHoveredRowId(item.dxCall);
+                        onHoverSpot(item, e, accentColor);
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredRowId(null);
+                        onHoverSpot(null);
+                      }}
+                      style={{
+                        backgroundColor: isClosest 
+                          ? hexToRgba(accentColor, 0.22) 
+                          : isHovered 
+                          ? hexToRgba(accentColor, 0.12) 
+                          : 'transparent',
+                        borderLeft: isClosest 
+                          ? `3px solid ${accentColor}` 
+                          : isHovered 
+                          ? `3px solid ${hexToRgba(accentColor, 0.65)}` 
+                          : '3px solid transparent'
+                      }}
+                      className="transition-colors border-b border-white/[0.02] cursor-default group/row relative"
                     >
-                      <td className={`py-1 truncate font-bold ${isClosest ? 'text-white underline decoration-brand-accent' : 'text-brand-accent/80'}`}>{item.frequency.toFixed(3)}</td>
+                      <td 
+                        className="py-1 truncate font-bold"
+                        style={{
+                          color: isClosest || isHovered ? '#ffffff' : hexToRgba(accentColor, 0.9),
+                          textDecoration: isClosest ? 'underline' : 'none',
+                          textDecorationColor: accentColor
+                        }}
+                      >
+                        {item.frequency.toFixed(3)}
+                      </td>
                       <td className="py-1 flex items-center gap-2 min-w-0 relative">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <span 
-                            className="text-lg leading-none shrink-0" 
-                            title={dxCountry.name}
+                            className="text-lg leading-none shrink-0 select-none" 
+                            title={dxCountry.code && dxCountry.code !== 'UN' ? `${dxCountry.name} (${dxCountry.code})` : dxCountry.name}
                           >
                             {dxCountry.flag}
                           </span>
@@ -204,6 +408,43 @@ const BandColumn: React.FC<BandColumnProps> = ({
                             {item.dxCall}
                           </span>
                         </div>
+                      </td>
+                      <td className="py-1 text-right truncate text-[12px] text-text-dim font-mono">
+                        {item.locator ? (
+                          <div className="flex flex-col items-end gap-1 my-0.5">
+                            <span className="text-white font-bold text-[12px] bg-white/5 px-1.5 py-0.5 rounded border border-white/10 leading-none tracking-wider font-mono">
+                              {item.locator}
+                            </span>
+                            {item.distance !== undefined && (
+                              <div className="flex items-center justify-end gap-1.5 text-[11px] font-medium leading-none">
+                                <span className="text-white/90 font-semibold">{item.distance} <span className="text-[9px] text-text-dim">km</span></span>
+                                {item.bearing !== undefined && (
+                                  <span 
+                                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[12px] font-bold shadow-sm" 
+                                    style={{
+                                      backgroundColor: hexToRgba(accentColor, 0.15),
+                                      border: `1px solid ${hexToRgba(accentColor, 0.3)}`,
+                                      color: accentColor
+                                    }}
+                                    title={`Richtung: ${item.bearing}°`}
+                                  >
+                                    <ArrowUp 
+                                      size={13} 
+                                      className="shrink-0 transition-transform duration-300" 
+                                      style={{ 
+                                        transform: `rotate(${item.bearing}deg)`,
+                                        color: accentColor 
+                                      }} 
+                                    />
+                                    <span>{item.bearing}°</span>
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="opacity-20">-</span>
+                        )}
                       </td>
                     </tr>
                 );
@@ -227,7 +468,7 @@ export default function App() {
   const [consoleHeight, setConsoleHeight] = useState(180);
   const [spots, setSpots] = useState<DxSpot[]>([]);
   const [workedQSOs, setWorkedQSOs] = useState<Record<string, string[]>>({});
-  const [hoveredSpot, setHoveredSpot] = useState<{ spot: DxSpot, x: number, y: number } | null>(null);
+  const [hoveredSpot, setHoveredSpot] = useState<{ spot: DxSpot, x: number, y: number, color?: string } | null>(null);
   const consoleRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
@@ -357,7 +598,7 @@ export default function App() {
     setDidConfirmReset(false);
   };
 
-  const handleHoverSpot = (spot: DxSpot | null, e?: React.MouseEvent) => {
+  const handleHoverSpot = (spot: DxSpot | null, e?: React.MouseEvent, color?: string) => {
     if (!spot || !e) {
       setHoveredSpot(null);
       return;
@@ -365,16 +606,16 @@ export default function App() {
     
     // Position the tooltip near the mouse, but ensure it stays within viewport
     const x = Math.min(e.clientX + 10, window.innerWidth - 340);
-    const y = Math.min(e.clientY + 10, window.innerHeight - 300);
+    const y = Math.min(e.clientY + 10, window.innerHeight - 340);
     
-    setHoveredSpot({ spot, x, y });
+    setHoveredSpot({ spot, x, y, color: color || '#38bdf8' });
   };
 
   if (!config) return (
     <div className="h-screen bg-brand-bg flex items-center justify-center font-mono text-[11px] uppercase tracking-[0.2em] text-brand-accent">
       <div className="flex items-center gap-3">
         <Radio size={20} className="animate-spin" />
-        BOOTING MULTI-BANDMAP SYSTEM v0.2.3...
+        BOOTING MULTI-BANDMAP SYSTEM v0.3.0...
       </div>
     </div>
   );
@@ -388,7 +629,7 @@ export default function App() {
             <Radio size={16} className="text-brand-accent" />
             <div className="flex items-baseline gap-1.5">
               <h1 className="font-bold tracking-widest text-brand-accent uppercase text-[13px]">Multi-Bandmap</h1>
-              <span className="text-[9px] font-mono text-text-dim opacity-60">v0.2.3</span>
+              <span className="text-[9px] font-mono text-text-dim opacity-60">v0.3.0</span>
             </div>
           </div>
           
@@ -410,16 +651,27 @@ export default function App() {
                     className="absolute left-0 mt-1 w-64 bg-brand-surface border border-brand-border rounded shadow-2xl p-1 z-50"
                   >
                     <div className="text-[10px] uppercase font-bold text-text-dim px-3 py-2 border-b border-brand-border mb-1">Grid Management</div>
-                    {config.columns.map(col => (
-                      <button 
-                        key={col.id}
-                        onClick={() => toggleColumn(col.id)}
-                        className="w-full flex items-center justify-between px-3 py-1.5 rounded hover:bg-brand-elevated transition-colors group"
-                      >
-                        <span className="text-[11px] text-text-dim group-hover:text-white">{col.title} ({col.band})</span>
-                        {col.visible ? <Eye size={13} className="text-brand-accent" /> : <EyeOff size={13} className="text-text-dim opacity-50" />}
-                      </button>
-                    ))}
+                    {config.columns.map((col, idx) => {
+                      const colColor = getColumnColor(col, idx);
+                      return (
+                        <button 
+                          key={col.id}
+                          onClick={() => toggleColumn(col.id)}
+                          className="w-full flex items-center justify-between px-3 py-1.5 rounded hover:bg-brand-elevated transition-colors group"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span 
+                              className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/20 shadow-xs" 
+                              style={{ backgroundColor: colColor }}
+                            />
+                            <span className="text-[11px] text-text-dim group-hover:text-white truncate">
+                              {col.title} ({col.band})
+                            </span>
+                          </div>
+                          {col.visible ? <Eye size={13} style={{ color: colColor }} /> : <EyeOff size={13} className="text-text-dim opacity-50" />}
+                        </button>
+                      );
+                    })}
                     <div className="border-t border-brand-border mt-1 pt-1">
                       <button 
                         onClick={toggleBottomArea}
@@ -526,6 +778,17 @@ export default function App() {
                         />
                       </div>
                     </div>
+                    <div className="space-y-1 pt-1">
+                      <label className="text-[9px] text-text-dim">Eigener QTH Locator</label>
+                      <input 
+                        type="text"
+                        className="w-full bg-brand-elevated border border-brand-border rounded px-2 py-1 text-[11px] text-white focus:border-brand-accent outline-none uppercase font-mono"
+                        value={config.qthLocator || ""}
+                        onChange={(e) => setConfig({...config, qthLocator: e.target.value.toUpperCase()})}
+                        onBlur={() => saveConfig(config)}
+                        placeholder="z.B. JO62VO"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2 pt-2 border-t border-brand-border">
@@ -585,10 +848,11 @@ export default function App() {
           <AnimatePresence mode="popLayout">
             {config.columns
               .filter(col => col.visible)
-              .map(col => (
+              .map((col, idx) => (
                 <BandColumn 
                   key={col.id}
                   config={col}
+                  columnIndex={idx}
                   spots={spots}
                   workedQSOs={workedQSOs}
                   onUpdate={updateColumn}
@@ -678,7 +942,9 @@ export default function App() {
             <span className={`w-1.5 h-1.5 rounded-full ${clusterStatus === 'CONNECTED' ? 'bg-green-500' : 'bg-red-500'}`}></span> 
             DX-CLUSTER: {clusterStatus} ({config?.clusterHost})
           </span>
-          <span className="text-brand-accent">{config?.clusterCallsign || 'GUEST'}</span>
+          <span className="text-brand-accent">
+            {config?.clusterCallsign || 'GUEST'}{config?.qthLocator ? ` [${config.qthLocator}]` : ''}
+          </span>
           <span>DX-SPOTS: {spots.length}</span>
         </div>
         <div className="flex gap-4">
@@ -693,60 +959,146 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            style={{ left: hoveredSpot.x, top: hoveredSpot.y }}
-            className="fixed z-[999] w-80 bg-brand-surface border border-brand-accent p-3.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-none backdrop-blur-2xl transition-all duration-75"
+            style={{ 
+              left: hoveredSpot.x, 
+              top: hoveredSpot.y,
+              borderColor: hexToRgba(hoveredSpot.color || '#38bdf8', 0.4),
+              borderTop: `3px solid ${hoveredSpot.color || '#38bdf8'}`,
+              boxShadow: `0 20px 50px rgba(0,0,0,0.6), 0 0 24px ${hexToRgba(hoveredSpot.color || '#38bdf8', 0.15)}`
+            }}
+            className="fixed z-[999] w-80 bg-brand-surface border p-3.5 pointer-events-none backdrop-blur-2xl transition-all duration-75 rounded-b-md"
           >
             {(() => {
+              const tooltipColor = hoveredSpot.color || '#38bdf8';
               const dxCountry = getCountryInfoByCallsign(hoveredSpot.spot.dxCall);
               const spotterCountry = getCountryInfoByCallsign(hoveredSpot.spot.spotterCall);
               const time = new Date(hoveredSpot.spot.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
               return (
                 <>
-                  <div className="text-[13px] text-brand-accent font-bold mb-3 opacity-90 uppercase tracking-[0.1em] border-b border-brand-accent/20 pb-1.5 flex justify-between items-center">
+                  <div 
+                    className="text-[13px] font-bold mb-3 uppercase tracking-[0.1em] pb-1.5 flex justify-between items-center"
+                    style={{ 
+                      color: tooltipColor, 
+                      borderBottom: `1px solid ${hexToRgba(tooltipColor, 0.25)}` 
+                    }}
+                  >
                     <div className="flex items-center gap-2">
                       <span>Spot Details</span>
                       {hoveredSpot.spot.isManual && (
-                        <span className="bg-yellow-500/20 text-yellow-500 text-[9px] px-1.5 py-0.5 rounded border border-yellow-500/30 animate-pulse">
+                        <span className="bg-yellow-500/20 text-yellow-500 text-[9px] px-1.5 py-0.5 rounded border border-yellow-500/30 animate-pulse font-normal">
                           MANUELL
                         </span>
                       )}
                     </div>
-                    <span className="text-white/50">{time} UTC</span>
+                    <span className="text-white/50 font-mono text-[11px] font-normal">{time} UTC</span>
                   </div>
-                  <div className="space-y-4 text-[14px]">
+                  <div className="space-y-3.5 text-[14px]">
                     <div>
-                      <div className="text-text-dim text-[12px] uppercase tracking-tighter mb-1">Station Info</div>
-                      <div className="flex items-center gap-3 bg-white/5 p-2 rounded-md">
-                        <span className="text-3xl">{dxCountry.flag}</span>
-                        <div>
-                          <div className="text-white font-bold text-lg leading-tight">{hoveredSpot.spot.dxCall}</div>
-                          <div className="text-[12px] text-text-dim">{dxCountry.name}</div>
+                      <div className="text-text-dim text-[11px] uppercase tracking-wider mb-1">Station Info</div>
+                      <div className="flex items-center gap-3 bg-white/5 p-2 rounded-md border border-white/5">
+                        <span className="text-3xl shrink-0 leading-none drop-shadow-sm select-none">{dxCountry.flag}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-white font-bold text-lg leading-tight truncate">{hoveredSpot.spot.dxCall}</div>
+                          <div className="text-[12px] text-text-dim truncate mt-0.5">
+                            <span className="text-white/90 font-medium">{dxCountry.name}</span>
+                            {dxCountry.code && dxCountry.code !== 'UN' && (
+                              <span className="opacity-60 text-[10px] ml-1.5 font-mono">[{dxCountry.code}]</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                       <div className="bg-white/2 pb-1">
-                         <div className="text-text-dim text-[12px] uppercase tracking-tighter">Frequenz</div>
-                         <div className="text-brand-accent font-mono text-lg">{(hoveredSpot.spot.frequency * 1000).toFixed(1)} kHz</div>
+                    <div className="grid grid-cols-2 gap-3">
+                       <div className="bg-white/2 pb-1 border-b border-white/5">
+                         <div className="text-text-dim text-[11px] uppercase tracking-wider">Frequenz</div>
+                         <div className="font-mono text-lg font-bold" style={{ color: tooltipColor }}>
+                           {(hoveredSpot.spot.frequency * 1000).toFixed(1)} kHz
+                         </div>
                        </div>
-                       <div className="bg-white/2 pb-1">
-                         <div className="text-text-dim text-[12px] uppercase tracking-tighter">Zeit</div>
-                         <div className="text-white font-mono text-lg">{time}</div>
+                       <div className="bg-white/2 pb-1 border-b border-white/5">
+                         <div className="text-text-dim text-[11px] uppercase tracking-wider">Zeit (UTC)</div>
+                         <div className="text-white font-mono text-lg font-semibold">{time}</div>
                        </div>
                     </div>
 
-                    <div className="bg-white/2 rounded p-1 px-1.5">
-                      <div className="text-text-dim text-[12px] uppercase tracking-tighter mb-1">Spotter</div>
+                    {hoveredSpot.spot.locator && (
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-2.5 space-y-2">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                          <span className="text-text-dim text-[11px] uppercase tracking-wider font-semibold flex items-center gap-1.5">
+                            <Compass size={13} style={{ color: tooltipColor }} />
+                            QTH Locator
+                          </span>
+                          <span 
+                            className="font-mono font-bold text-base px-2 py-0.5 rounded tracking-wider"
+                            style={{
+                              backgroundColor: hexToRgba(tooltipColor, 0.15),
+                              border: `1px solid ${hexToRgba(tooltipColor, 0.35)}`,
+                              color: tooltipColor
+                            }}
+                          >
+                            {hoveredSpot.spot.locator}
+                          </span>
+                        </div>
+                        {hoveredSpot.spot.distance !== undefined && (
+                          <div className="grid grid-cols-2 gap-2 pt-0.5">
+                            <div className="bg-black/20 rounded p-2 border border-white/5">
+                              <div className="text-text-dim text-[10px] uppercase tracking-wider">Entfernung (QRB)</div>
+                              <div className="text-white font-mono font-bold text-base mt-0.5 flex items-baseline gap-1">
+                                <span className="text-lg font-bold" style={{ color: tooltipColor }}>{hoveredSpot.spot.distance}</span>
+                                <span className="text-[12px] text-text-dim font-normal">km</span>
+                              </div>
+                            </div>
+                            {hoveredSpot.spot.bearing !== undefined && (
+                              <div className="bg-black/20 rounded p-2 border border-white/5">
+                                <div className="text-text-dim text-[10px] uppercase tracking-wider">Richtung (QTE)</div>
+                                <div className="text-white font-mono font-bold text-base mt-0.5 flex items-center gap-2">
+                                  <span 
+                                    className="flex items-center justify-center w-6 h-6 rounded-full shrink-0 shadow-sm"
+                                    style={{
+                                      backgroundColor: hexToRgba(tooltipColor, 0.2),
+                                      border: `1px solid ${hexToRgba(tooltipColor, 0.35)}`
+                                    }}
+                                  >
+                                    <ArrowUp 
+                                      size={14} 
+                                      style={{ 
+                                        transform: `rotate(${hoveredSpot.spot.bearing}deg)`,
+                                        color: tooltipColor
+                                      }} 
+                                    />
+                                  </span>
+                                  <div className="flex items-baseline gap-0.5">
+                                    <span className="text-lg font-bold" style={{ color: tooltipColor }}>{hoveredSpot.spot.bearing}°</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="bg-white/2 rounded p-2 border border-white/5">
+                      <div className="text-text-dim text-[11px] uppercase tracking-wider mb-1">Spotter</div>
                       <div className="flex items-center gap-2.5 text-[13px]">
-                        <span className="text-xl leading-none">{spotterCountry.flag}</span>
-                        <span className="text-white font-semibold">{hoveredSpot.spot.spotterCall}</span>
-                        <span className="text-[12px] text-text-dim truncate">({spotterCountry.name})</span>
+                        <span className="text-xl leading-none shrink-0 select-none drop-shadow-xs">{spotterCountry.flag}</span>
+                        <span className="text-white font-semibold font-mono">{hoveredSpot.spot.spotterCall}</span>
+                        <span className="text-[12px] text-text-dim truncate">
+                          ({spotterCountry.name})
+                        </span>
                       </div>
                     </div>
 
                     {hoveredSpot.spot.info && (
-                      <div className="bg-brand-accent/10 border border-brand-accent/20 p-2 rounded-md text-[13px] text-text-main italic border-l-4 border-l-brand-accent leading-relaxed">
+                      <div 
+                        className="p-2 rounded-md text-[12px] text-text-main italic leading-relaxed"
+                        style={{
+                          backgroundColor: hexToRgba(tooltipColor, 0.08),
+                          border: `1px solid ${hexToRgba(tooltipColor, 0.2)}`,
+                          borderLeft: `4px solid ${tooltipColor}`
+                        }}
+                      >
                         "{hoveredSpot.spot.info}"
                       </div>
                     )}

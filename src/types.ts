@@ -3,6 +3,7 @@ export interface ColumnConfig {
   title: string;
   band: string;
   visible: boolean;
+  color?: string;
   currentFrequency?: number;
 }
 
@@ -14,6 +15,9 @@ export interface DxSpot {
   info: string;
   timestamp: string; // ISO string
   isManual?: boolean;
+  locator?: string;
+  distance?: number; // in km
+  bearing?: number;  // in degrees (0-359)
 }
 
 export interface AppConfig {
@@ -24,6 +28,7 @@ export interface AppConfig {
   clusterHost: string;
   clusterPort: number;
   clusterCallsign: string;
+  qthLocator: string;
 }
 
 export const BAND_FREQUENCIES: Record<string, { min: number, max: number }> = {

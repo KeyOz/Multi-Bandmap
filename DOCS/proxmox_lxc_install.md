@@ -84,6 +84,9 @@ Die Applikation ist nun über die IP-Adresse Ihres Containers auf Port **3000** 
 
 `http://<CONTAINER-IP>:3000`
 
+## 7. Updates
+Eine ausführliche Anleitung zur Aktualisierung einer bestehenden Installation finden Sie in [DOCS/update_guide.md](update_guide.md).
+
 ---
 
 ## Fehlerbehebung

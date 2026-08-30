@@ -4,6 +4,19 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei festgehalten
 
 ---
 
+## [0.3.0] - 2026-08-29
+### Hinzugefügt
+- **Spalten-Farben**: Individuelle Akzentfarben für jede Band-Spalte mit Farbwähler im Spaltenkopf (12 Farbpresets + freier HEX-Color-Picker).
+- **Detail-Tooltips**: Vollständige Übernahme der gewählten Spaltenfarbe in den Spot-Detail-Hover-Boxen (Header, Locator-Badge, QRB/QTE-Kennzahlen, Kommentarrahmen).
+- **DXCC & Flaggen**: Vollständige Überarbeitung der DXCC-Erkennung mit Länderflaggen für DX- und Spotter-Stationen inklusive umfassender Präfix-Tabelle und Auswertung von Schrägstrich-Rufzeichen (z. B. `EA8/DL1ABC`, `/P`, etc.).
+- **QRB & QTE**: Berechnung von Entfernung (in km) und Peilung mit drehendem Richtungspfeil basierend auf dem eigenen QTH-Locator.
+- **Dokumentation**: Ausführliche Update-Anleitung (`DOCS/update_guide.md`) für Upgrades von älteren Versionen (z. B. 0.2.3).
+
+## [0.2.4] - 2026-07-27
+### Hinzugefügt
+- **Konfiguration**: Neues Eingabefeld für den eigenen QTH Locator in den Einstellungen hinzugefügt und dauerhaft abgespeichert.
+- **UI**: Eigener QTH Locator wird in der Statuszeile neben dem Rufzeichen in eckigen Klammern angezeigt.
+
 ## [0.2.3] - 2026-04-23
 ### Geändert
 - **UI**: Statuszeile aktualisiert (Cluster-Adresse hinzugefügt, Byte-Counter entfernt, Copyright auf DD6ZJ geändert).

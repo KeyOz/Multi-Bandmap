@@ -2,5 +2,7 @@
   "name": "Multi-Bandmap",
   "description": "A professional-grade amateur radio band management tool with persistent configuration, dynamic columns, and real-time visualization of ham radio bands from 160m to 3cm.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
