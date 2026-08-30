@@ -40,7 +40,8 @@ async function startServer() {
     clusterPort: 7300,
     clusterCallsign: "DF0OT",
     qthLocator: "JO62VO",
-    showFlags: true
+    showFlags: true,
+    alertSound: true
   };
 
   if (!fs.existsSync(CONFIG_FILE)) {
@@ -219,6 +220,22 @@ async function startServer() {
   };
 
   setInterval(cleanupSpots, 5 * 60 * 1000); // Cleanup every 5 mins
+
+  app.get("/api/spots/history/:call", (req, res) => {
+    try {
+      const targetCall = req.params.call?.trim().toUpperCase();
+      if (!targetCall) {
+        return res.status(400).json({ error: "Missing callsign" });
+      }
+      const history = spots
+        .filter(s => s.dxCall.toUpperCase() === targetCall)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 5);
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: "Could not fetch spot history" });
+    }
+  });
 
   app.get("/api/config", (req, res) => {
     try {

@@ -30,6 +30,7 @@ export interface AppConfig {
   clusterCallsign: string;
   qthLocator: string;
   showFlags?: boolean;
+  alertSound?: boolean;
 }
 
 export const BAND_FREQUENCIES: Record<string, { min: number, max: number }> = {

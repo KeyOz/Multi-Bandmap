@@ -6,6 +6,8 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei festgehalten
 
 ## [0.3.1] - 2026-08-30
 ### Hinzugefügt
+- **Akustischer Hinweiston bei Spot-Alarm**: Neue Option in den Einstellungen mit Test-Button zum Abspielen eines dezenten, zweistimmigen Chimes beim Aktivieren einer Alarm-Markierung (Glocken-Icon).
+- **Spot-Historie im Tooltip**: Neuer „Historie“-Button in der Spot-Detailansicht (Tooltip). Beim Anklicken wird direkt eine Liste der letzten 5 Spots dieser spezifischen DX-Station über alle Bänder hinweg mit Band, Frequenz, Spotter und UTC-Zeit angezeigt.
 - **Spot-Alarm / Visuelle Markierung**: Glocken-Icon in jeder Spot-Zeile zur Stationsmarkierung. Aktivierte Spots erhalten einen pulsierenden Rahmen in der jeweiligen Spalten-Akzentfarbe samt leuchtendem Hintergrund. Sobald die Station als gearbeitet (Worked QSO) erkannt oder geloggt wird, schaltet sich die visuelle Markierung automatisch ab.
 - **Flaggen-Schalter**: Neuer Schalter im Anzeige-Menü zum flexiblen Ein- und Ausblenden der Landesflaggen neben den Rufzeichen.
 

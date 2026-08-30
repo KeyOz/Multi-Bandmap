@@ -18,7 +18,9 @@ import {
   Compass,
   Palette,
   Flag,
-  Bell
+  Bell,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -64,6 +66,57 @@ export const hexToRgba = (hex?: string, alpha: number = 1): string => {
   const g = (num >> 8) & 255;
   const b = num & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+export const getBandForFrequency = (freqMHz: number): string => {
+  for (const [bandName, range] of Object.entries(BAND_FREQUENCIES)) {
+    if (freqMHz >= range.min && freqMHz <= range.max) {
+      return bandName;
+    }
+  }
+  return `${freqMHz.toFixed(3)} MHz`;
+};
+
+export const playAlertChime = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+    const now = ctx.currentTime;
+
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    const gain2 = ctx.createGain();
+
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(880, now); // A5
+    osc1.frequency.exponentialRampToValueAtTime(1318.5, now + 0.08); // E6
+
+    gain1.gain.setValueAtTime(0.12, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(1318.5, now + 0.08);
+    gain2.gain.setValueAtTime(0.001, now);
+    gain2.gain.setValueAtTime(0.08, now + 0.08);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+
+    osc1.start(now);
+    osc1.stop(now + 0.36);
+    osc2.start(now + 0.08);
+    osc2.stop(now + 0.42);
+  } catch (e) {
+    console.warn("Audio playback not allowed or supported:", e);
+  }
 };
 
 // --- Components ---
@@ -547,11 +600,13 @@ export default function App() {
   const [spots, setSpots] = useState<DxSpot[]>([]);
   const [workedQSOs, setWorkedQSOs] = useState<Record<string, string[]>>({});
   const [hoveredSpot, setHoveredSpot] = useState<{ spot: DxSpot, x: number, y: number, color?: string } | null>(null);
+  const [showTooltipHistory, setShowTooltipHistory] = useState(false);
   const [alertedSpotKeys, setAlertedSpotKeys] = useState<Set<string>>(new Set());
   const consoleRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
   const retentionHoursRef = useRef(4);
+  const tooltipLeaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Update ref when config changes
   useEffect(() => {
@@ -708,16 +763,31 @@ export default function App() {
   };
 
   const handleHoverSpot = (spot: DxSpot | null, e?: React.MouseEvent, color?: string) => {
+    if (tooltipLeaveTimeoutRef.current) {
+      clearTimeout(tooltipLeaveTimeoutRef.current);
+      tooltipLeaveTimeoutRef.current = null;
+    }
+
     if (!spot || !e) {
-      setHoveredSpot(null);
+      // Small grace delay before hiding tooltip to allow moving cursor into tooltip
+      tooltipLeaveTimeoutRef.current = setTimeout(() => {
+        setHoveredSpot(null);
+        setShowTooltipHistory(false);
+      }, 250);
       return;
     }
     
     // Position the tooltip near the mouse, but ensure it stays within viewport
-    const x = Math.min(e.clientX + 10, window.innerWidth - 340);
-    const y = Math.min(e.clientY + 10, window.innerHeight - 340);
+    const x = Math.min(e.clientX + 10, window.innerWidth - 350);
+    const y = Math.min(e.clientY + 10, window.innerHeight - 380);
     
-    setHoveredSpot({ spot, x, y, color: color || '#38bdf8' });
+    setHoveredSpot(prev => {
+      // If switching to a different spot, reset history toggle
+      if (prev?.spot.dxCall !== spot.dxCall) {
+        setShowTooltipHistory(false);
+      }
+      return { spot, x, y, color: color || '#38bdf8' };
+    });
   };
 
   const toggleSpotAlert = (key: string) => {
@@ -727,6 +797,9 @@ export default function App() {
         next.delete(key);
       } else {
         next.add(key);
+        if (config?.alertSound !== false) {
+          playAlertChime();
+        }
       }
       return next;
     });
@@ -940,6 +1013,45 @@ export default function App() {
                     </label>
                     <div className="text-[9px] text-text-dim italic leading-tight">Wechselt das Spalten-Band automatisch bei QRG-Änderung über API.</div>
                   </div>
+
+                  <div className="space-y-2 pt-2 border-t border-brand-border">
+                    <div className="flex items-center justify-between">
+                      <label 
+                        onClick={() => saveConfig({ ...config, alertSound: config.alertSound !== false ? false : true })}
+                        className="flex items-center gap-1.5 cursor-pointer group select-none min-w-0"
+                      >
+                        {config.alertSound !== false ? (
+                          <Volume2 size={13} className="text-brand-accent shrink-0" />
+                        ) : (
+                          <VolumeX size={13} className="text-text-dim opacity-50 shrink-0" />
+                        )}
+                        <span className="text-[11px] text-text-dim group-hover:text-white transition-colors truncate">
+                          Hinweiston bei Spot-Alarm
+                        </span>
+                      </label>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playAlertChime();
+                          }}
+                          title="Testton abspielen"
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-brand-elevated hover:bg-white/10 text-text-dim hover:text-white border border-brand-border transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                        >
+                          <Volume2 size={10} />
+                          <span>Test</span>
+                        </button>
+                        <div 
+                          onClick={() => saveConfig({ ...config, alertSound: config.alertSound !== false ? false : true })}
+                          className={`w-8 h-4 rounded-full relative transition-colors cursor-pointer ${config.alertSound !== false ? 'bg-brand-accent' : 'bg-brand-elevated border border-brand-border'}`}
+                        >
+                          <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-all transform ${config.alertSound !== false ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-[9px] text-text-dim italic leading-tight">Spielt einen kurzen, dezenten Hinweiston ab, wenn ein Spot-Alarm per Glocken-Icon aktiviert wird.</div>
+                  </div>
                   
                   <div className="pt-2 border-t border-brand-border space-y-3">
                     <div className="text-[9px] text-text-dim mb-1 uppercase opacity-50">Zuletzt gespeichert: DX-Spots ({spots.length})</div>
@@ -1099,6 +1211,18 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
+            onMouseEnter={() => {
+              if (tooltipLeaveTimeoutRef.current) {
+                clearTimeout(tooltipLeaveTimeoutRef.current);
+                tooltipLeaveTimeoutRef.current = null;
+              }
+            }}
+            onMouseLeave={() => {
+              tooltipLeaveTimeoutRef.current = setTimeout(() => {
+                setHoveredSpot(null);
+                setShowTooltipHistory(false);
+              }, 200);
+            }}
             style={{ 
               left: hoveredSpot.x, 
               top: hoveredSpot.y,
@@ -1106,7 +1230,7 @@ export default function App() {
               borderTop: `3px solid ${hoveredSpot.color || '#38bdf8'}`,
               boxShadow: `0 20px 50px rgba(0,0,0,0.6), 0 0 24px ${hexToRgba(hoveredSpot.color || '#38bdf8', 0.15)}`
             }}
-            className="fixed z-[999] w-80 bg-brand-surface border p-3.5 pointer-events-none backdrop-blur-2xl transition-all duration-75 rounded-b-md"
+            className="fixed z-[999] w-84 bg-brand-surface border p-3.5 pointer-events-auto backdrop-blur-2xl transition-all duration-75 rounded-b-md max-h-[85vh] overflow-y-auto"
           >
             {(() => {
               const tooltipColor = hoveredSpot.color || '#38bdf8';
@@ -1134,7 +1258,26 @@ export default function App() {
                   </div>
                   <div className="space-y-3.5 text-[14px]">
                     <div>
-                      <div className="text-text-dim text-[11px] uppercase tracking-wider mb-1">Station Info</div>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-text-dim text-[11px] uppercase tracking-wider">Station Info</div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowTooltipHistory(prev => !prev);
+                          }}
+                          className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded transition-all cursor-pointer shadow-sm hover:brightness-110 active:scale-95"
+                          style={{
+                            backgroundColor: showTooltipHistory ? hexToRgba(tooltipColor, 0.3) : hexToRgba(tooltipColor, 0.12),
+                            border: `1px solid ${hexToRgba(tooltipColor, showTooltipHistory ? 0.6 : 0.25)}`,
+                            color: tooltipColor
+                          }}
+                          title="Letzte 5 Spots dieser DX-Station auf allen Bändern anzeigen"
+                        >
+                          <History size={12} className={showTooltipHistory ? "animate-pulse" : ""} />
+                          <span>Historie</span>
+                        </button>
+                      </div>
                       <div className="flex items-center gap-3 bg-white/5 p-2 rounded-md border border-white/5">
                         <span className="text-3xl shrink-0 leading-none drop-shadow-sm select-none">{dxCountry.flag}</span>
                         <div className="min-w-0 flex-1">
@@ -1148,6 +1291,77 @@ export default function App() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Spot History Section */}
+                    {showTooltipHistory && (
+                      <div 
+                        className="rounded-md p-2.5 space-y-2 border transition-all animate-fadeIn"
+                        style={{
+                          backgroundColor: hexToRgba(tooltipColor, 0.05),
+                          borderColor: hexToRgba(tooltipColor, 0.25)
+                        }}
+                      >
+                        <div className="flex items-center justify-between text-[11px] font-semibold tracking-wider uppercase border-b pb-1"
+                             style={{ color: tooltipColor, borderColor: hexToRgba(tooltipColor, 0.2) }}>
+                          <span className="flex items-center gap-1.5">
+                            <History size={12} />
+                            Letzte 5 Spots ({hoveredSpot.spot.dxCall})
+                          </span>
+                          <span className="text-[10px] opacity-70 font-mono">Alle Bänder</span>
+                        </div>
+                        {(() => {
+                          const historySpots = spots
+                            .filter(s => s.dxCall.toUpperCase() === hoveredSpot.spot.dxCall.toUpperCase())
+                            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                            .slice(0, 5);
+
+                          if (historySpots.length === 0) {
+                            return (
+                              <div className="text-xs text-text-dim py-1 text-center italic">
+                                Keine weiteren Spots im Speicher
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="space-y-1.5">
+                              {historySpots.map((histSpot, idx) => {
+                                const hTime = new Date(histSpot.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                const band = getBandForFrequency(histSpot.frequency);
+                                const isCurrent = histSpot.id === hoveredSpot.spot.id;
+                                return (
+                                  <div 
+                                    key={histSpot.id || idx}
+                                    className={`flex items-center justify-between text-[11px] py-1 px-1.5 rounded font-mono ${
+                                      isCurrent ? 'bg-white/10 font-bold' : 'bg-black/20 hover:bg-white/5'
+                                    }`}
+                                    style={isCurrent ? { borderLeft: `2px solid ${tooltipColor}` } : {}}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span 
+                                        className="text-[10px] px-1 py-0.2 rounded font-semibold"
+                                        style={{ backgroundColor: hexToRgba(tooltipColor, 0.2), color: tooltipColor }}
+                                      >
+                                        {band}
+                                      </span>
+                                      <span className="text-white">
+                                        {(histSpot.frequency * 1000).toFixed(1)}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-text-dim text-[10px]">
+                                      <span className="truncate max-w-[70px] text-white/70" title={`Spotter: ${histSpot.spotterCall}`}>
+                                        by {histSpot.spotterCall}
+                                      </span>
+                                      <span className="text-white/50">{hTime}z</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-3">
                        <div className="bg-white/2 pb-1 border-b border-white/5">
