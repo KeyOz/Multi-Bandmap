@@ -39,7 +39,8 @@ async function startServer() {
     clusterHost: "dx.da0bcc.de",
     clusterPort: 7300,
     clusterCallsign: "DF0OT",
-    qthLocator: "JO62VO"
+    qthLocator: "JO62VO",
+    showFlags: true
   };
 
   if (!fs.existsSync(CONFIG_FILE)) {
@@ -156,7 +157,16 @@ async function startServer() {
 
   const enrichSpotWithLocator = (spot: any) => {
     const cleanCall = spot.dxCall?.split("/")[0]?.toUpperCase() || spot.dxCall?.toUpperCase();
-    const locator = callsignToLocatorMap[cleanCall] || callsignToLocatorMap[spot.dxCall?.toUpperCase()];
+    let locator = callsignToLocatorMap[cleanCall] || callsignToLocatorMap[spot.dxCall?.toUpperCase()];
+    
+    // Also check if spot info contains a Maidenhead grid locator (e.g. JO62, JO62qj, FM18, etc.)
+    if (!locator && spot.info) {
+      const locatorMatch = spot.info.match(/\b([A-R]{2}\d{2}([A-X]{2})?)\b/i);
+      if (locatorMatch) {
+        locator = locatorMatch[1].toUpperCase();
+      }
+    }
+
     if (locator) {
       spot.locator = locator;
       const config = loadConfig();

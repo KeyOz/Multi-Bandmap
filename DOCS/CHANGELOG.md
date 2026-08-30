@@ -4,6 +4,17 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei festgehalten
 
 ---
 
+## [0.3.1] - 2026-08-30
+### Hinzugefügt
+- **Spot-Alarm / Visuelle Markierung**: Glocken-Icon in jeder Spot-Zeile zur Stationsmarkierung. Aktivierte Spots erhalten einen pulsierenden Rahmen in der jeweiligen Spalten-Akzentfarbe samt leuchtendem Hintergrund. Sobald die Station als gearbeitet (Worked QSO) erkannt oder geloggt wird, schaltet sich die visuelle Markierung automatisch ab.
+- **Flaggen-Schalter**: Neuer Schalter im Anzeige-Menü zum flexiblen Ein- und Ausblenden der Landesflaggen neben den Rufzeichen.
+
+### Verbessert
+- **Frequenz-Darstellung**: Frequenzspalte verbreitert und Anzeige auf durchgehend 3 Nachkommastellen formatiert, auch bei Frequenzen über 1000 MHz (z. B. 1296.200 MHz).
+- **Layout & Ausrichtung**: Vollständige vertikal mittige Ausrichtung von Frequenz, Rufzeichen und Richtungsangaben in den Band-Spalten.
+- **Responsives Verhalten**: Automatisches Ausblenden von Landesflaggen und QRB-Kilometern auf kleinen Monitoren/Displays zur optimalen Platzausnutzung bei dauerhafter Sichtbarkeit von Rufzeichen und Peilungsrichtung (QTE).
+- **Locator-Erkennung**: Zusätzliche automatische Erkennung von Maidenhead-Grid-Locators aus Spot-Kommentaren für Spots ohne Datenbankeintrag.
+
 ## [0.3.0] - 2026-08-29
 ### Hinzugefügt
 - **Spalten-Farben**: Individuelle Akzentfarben für jede Band-Spalte mit Farbwähler im Spaltenkopf (12 Farbpresets + freier HEX-Color-Picker).

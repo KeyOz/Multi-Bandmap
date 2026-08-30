@@ -29,6 +29,7 @@ export interface AppConfig {
   clusterPort: number;
   clusterCallsign: string;
   qthLocator: string;
+  showFlags?: boolean;
 }
 
 export const BAND_FREQUENCIES: Record<string, { min: number, max: number }> = {

@@ -16,7 +16,9 @@ import {
   Clock,
   ArrowUp,
   Compass,
-  Palette
+  Palette,
+  Flag,
+  Bell
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -71,6 +73,9 @@ interface BandColumnProps {
   columnIndex?: number;
   spots: DxSpot[];
   workedQSOs: Record<string, string[]>;
+  showFlags?: boolean;
+  alertedSpotKeys?: Set<string>;
+  onToggleAlert?: (key: string) => void;
   onUpdate: (id: string, updates: any) => void;
   onHide: (id: string) => void;
   onHoverSpot: (spot: DxSpot | null, e?: React.MouseEvent, color?: string) => void;
@@ -81,6 +86,9 @@ const BandColumn: React.FC<BandColumnProps> = ({
   columnIndex,
   spots,
   workedQSOs,
+  showFlags = true,
+  alertedSpotKeys = new Set(),
+  onToggleAlert = (_key: string) => {},
   onUpdate, 
   onHide,
   onHoverSpot
@@ -161,7 +169,7 @@ const BandColumn: React.FC<BandColumnProps> = ({
   return (
     <motion.div 
       layout
-      className="flex flex-col h-full border-r border-brand-border bg-brand-bg relative flex-1 min-w-[200px] group"
+      className="flex flex-col h-full border-r border-brand-border bg-brand-bg relative flex-1 min-w-[220px] sm:min-w-[245px] lg:min-w-[260px] group shrink-0"
       style={{
         borderTop: `3px solid ${accentColor}`
       }}
@@ -334,25 +342,28 @@ const BandColumn: React.FC<BandColumnProps> = ({
       {/* Content Area (High Density Table View) */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-scroll p-2 font-mono text-[16.5px] scrollbar-thin scrollbar-thumb-brand-border"
+        className="flex-1 overflow-y-scroll p-1.5 font-mono text-[16.5px] scrollbar-thin scrollbar-thumb-brand-border"
       >
         <table className="w-full border-collapse table-fixed">
           <thead>
             <tr className="text-text-dim border-b border-brand-border text-[10px] tracking-tighter">
-              <th className="text-left font-normal pb-2 w-[75px]">MHZ</th>
-              <th className="text-left font-normal pb-2">DX-STATION</th>
-              <th className="text-right font-normal pb-2 w-[145px]">LOC / ENTF. / RICHT.</th>
+              <th className="text-left font-normal pb-1.5 pl-1 w-[86px] sm:w-[92px] lg:w-[98px]">MHZ</th>
+              <th className="text-left font-normal pb-1.5 px-1">DX-STATION</th>
+              <th className="text-right font-normal pb-1.5 pr-1 w-[68px] sm:w-[92px] lg:w-[115px]">RICHT. / LOC</th>
             </tr>
           </thead>
           <tbody className="text-gray-300">
             {filteredSpots.length === 0 ? (
               <tr>
-                <td colSpan={3} className="py-2 text-center text-text-dim/30 text-[11px] italic">Keine Spots in {config.band}</td>
+                <td colSpan={3} className="py-3 text-center text-text-dim/30 text-[11px] italic">Keine Spots in {config.band}</td>
               </tr>
             ) : (
               filteredSpots.map((item) => {
                 const isClosest = item.dxCall === closestSpotId;
                 const isHovered = hoveredRowId === item.dxCall;
+                const spotKey = item.id || item.dxCall;
+                const isWorked = Boolean(workedQSOs[config.band]?.includes(item.dxCall.toUpperCase()));
+                const isAlerted = !isWorked && (alertedSpotKeys.has(spotKey) || alertedSpotKeys.has(item.dxCall));
                 const dxCountry = getCountryInfoByCallsign(item.dxCall);
                 const spotterCountry = getCountryInfoByCallsign(item.spotterCall);
                 const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -369,81 +380,148 @@ const BandColumn: React.FC<BandColumnProps> = ({
                         onHoverSpot(null);
                       }}
                       style={{
-                        backgroundColor: isClosest 
+                        backgroundColor: isAlerted
+                          ? hexToRgba(accentColor, 0.24)
+                          : isClosest 
                           ? hexToRgba(accentColor, 0.22) 
                           : isHovered 
                           ? hexToRgba(accentColor, 0.12) 
                           : 'transparent',
-                        borderLeft: isClosest 
+                        borderLeft: isAlerted
+                          ? `3px solid ${accentColor}`
+                          : isClosest 
                           ? `3px solid ${accentColor}` 
                           : isHovered 
                           ? `3px solid ${hexToRgba(accentColor, 0.65)}` 
-                          : '3px solid transparent'
+                          : '3px solid transparent',
+                        boxShadow: isAlerted 
+                          ? `inset 0 0 0 1.5px ${accentColor}, 0 0 14px ${hexToRgba(accentColor, 0.45)}` 
+                          : undefined
                       }}
-                      className="transition-colors border-b border-white/[0.02] cursor-default group/row relative"
+                      className={`transition-colors border-b border-white/[0.03] cursor-default group/row relative align-middle ${
+                        isAlerted ? 'animate-pulse z-10' : ''
+                      }`}
                     >
+                      {/* Frequenz: Vertikal zentriert, immer 3 Nachkommastellen */}
                       <td 
-                        className="py-1 truncate font-bold"
+                        className="py-1.5 pl-1 pr-1 font-bold font-mono align-middle whitespace-nowrap leading-none text-[14px] sm:text-[15px]"
                         style={{
-                          color: isClosest || isHovered ? '#ffffff' : hexToRgba(accentColor, 0.9),
+                          color: isAlerted ? '#ffffff' : (isClosest || isHovered ? '#ffffff' : hexToRgba(accentColor, 0.95)),
                           textDecoration: isClosest ? 'underline' : 'none',
                           textDecorationColor: accentColor
                         }}
                       >
                         {item.frequency.toFixed(3)}
                       </td>
-                      <td className="py-1 flex items-center gap-2 min-w-0 relative">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
+
+                      {/* Rufzeichen & Flagge & Alarm-Glocke */}
+                      <td className="py-1.5 px-1 align-middle min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0 leading-none">
+                          {showFlags && (
+                            <span 
+                              className="hidden sm:inline-block text-lg leading-none shrink-0 select-none drop-shadow-xs" 
+                              title={dxCountry.code && dxCountry.code !== 'UN' ? `${dxCountry.name} (${dxCountry.code})` : dxCountry.name}
+                            >
+                              {dxCountry.flag}
+                            </span>
+                          )}
                           <span 
-                            className="text-lg leading-none shrink-0 select-none" 
-                            title={dxCountry.code && dxCountry.code !== 'UN' ? `${dxCountry.name} (${dxCountry.code})` : dxCountry.name}
+                            className={`truncate font-bold tracking-tight text-[14.5px] sm:text-[16px] ${
+                              isWorked ? 'text-green-500' : 
+                              item.isManual ? 'text-yellow-400' : 
+                              isAlerted ? 'font-extrabold text-white' :
+                              'text-text-main'
+                            }`}
+                            style={{
+                              color: isAlerted && !isWorked ? '#ffffff' : undefined,
+                              textShadow: isAlerted && !isWorked ? `0 0 8px ${hexToRgba(accentColor, 0.7)}` : undefined
+                            }}
                           >
-                            {dxCountry.flag}
-                          </span>
-                          <span className={`truncate font-bold ${
-                            item.isManual ? 'text-yellow-400' : 
-                            workedQSOs[config.band]?.includes(item.dxCall.toUpperCase()) ? 'text-green-500' : 
-                            'text-text-main'
-                          }`}>
                             {item.dxCall}
                           </span>
+
+                          {/* Glocken-Icon für visuellen Spot-Alarm */}
+                          <button
+                            type="button"
+                            disabled={isWorked}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!isWorked) {
+                                onToggleAlert(spotKey);
+                              }
+                            }}
+                            title={
+                              isWorked 
+                                ? "Station bereits gearbeitet (QSO geloggt)" 
+                                : isAlerted 
+                                ? "Alarm-Markierung deaktivieren" 
+                                : `Visuelle Markierung (${config.band}) aktivieren`
+                            }
+                            className={`p-0.5 ml-auto shrink-0 rounded transition-all cursor-pointer ${
+                              isWorked
+                                ? "opacity-0 pointer-events-none"
+                                : isAlerted
+                                ? "opacity-100 scale-110 hover:opacity-80"
+                                : "text-text-dim opacity-0 group-hover/row:opacity-50 hover:!opacity-100"
+                            }`}
+                            style={{
+                              color: isAlerted ? accentColor : undefined,
+                              filter: isAlerted ? `drop-shadow(0 0 6px ${hexToRgba(accentColor, 0.8)})` : undefined
+                            }}
+                          >
+                            <Bell size={12} style={{ fill: isAlerted ? accentColor : 'none' }} />
+                          </button>
                         </div>
                       </td>
-                      <td className="py-1 text-right truncate text-[12px] text-text-dim font-mono">
-                        {item.locator ? (
-                          <div className="flex flex-col items-end gap-1 my-0.5">
-                            <span className="text-white font-bold text-[12px] bg-white/5 px-1.5 py-0.5 rounded border border-white/10 leading-none tracking-wider font-mono">
-                              {item.locator}
-                            </span>
-                            {item.distance !== undefined && (
-                              <div className="flex items-center justify-end gap-1.5 text-[11px] font-medium leading-none">
-                                <span className="text-white/90 font-semibold">{item.distance} <span className="text-[9px] text-text-dim">km</span></span>
-                                {item.bearing !== undefined && (
-                                  <span 
-                                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[12px] font-bold shadow-sm" 
-                                    style={{
-                                      backgroundColor: hexToRgba(accentColor, 0.15),
-                                      border: `1px solid ${hexToRgba(accentColor, 0.3)}`,
-                                      color: accentColor
-                                    }}
-                                    title={`Richtung: ${item.bearing}°`}
-                                  >
-                                    <ArrowUp 
-                                      size={13} 
-                                      className="shrink-0 transition-transform duration-300" 
-                                      style={{ 
-                                        transform: `rotate(${item.bearing}deg)`,
-                                        color: accentColor 
-                                      }} 
-                                    />
-                                    <span>{item.bearing}°</span>
-                                  </span>
-                                )}
+
+                      {/* Richtung (QTE), Entfernung (QRB) & Locator: Entfernung erst ab md sichtbar, Richtung immer sichtbar */}
+                      <td className="py-1.5 pr-1 pl-1 text-right align-middle font-mono whitespace-nowrap">
+                        {item.bearing !== undefined ? (
+                          <div className="flex flex-col items-end gap-1 my-0.5 leading-none">
+                            {/* Zeile 1: Richtung & Entfernung (Entfernung nur ab sm/md) */}
+                            <div className="flex items-center justify-end gap-1.5">
+                              {item.distance !== undefined && (
+                                <span className="hidden md:inline-block text-white/80 text-[11px] font-semibold">
+                                  {item.distance} <span className="text-[9px] text-text-dim font-normal">km</span>
+                                </span>
+                              )}
+                              <span 
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold shrink-0 shadow-xs" 
+                                style={{
+                                  backgroundColor: hexToRgba(accentColor, 0.18),
+                                  border: `1px solid ${hexToRgba(accentColor, 0.38)}`,
+                                  color: accentColor
+                                }}
+                                title={`Richtung (QTE): ${item.bearing}°${item.distance !== undefined ? ` | ${item.distance} km` : ''}${item.locator ? ` | Locator: ${item.locator}` : ''}`}
+                              >
+                                <ArrowUp 
+                                  size={12} 
+                                  className="shrink-0" 
+                                  style={{ 
+                                    transform: `rotate(${item.bearing}deg)`,
+                                    color: accentColor 
+                                  }} 
+                                />
+                                <span>{item.bearing}°</span>
+                              </span>
+                            </div>
+                            {/* Zeile 2: Locator (falls vorhanden) */}
+                            {item.locator && (
+                              <div className="flex items-center justify-end">
+                                <span className="text-white/70 font-mono text-[10px] bg-white/5 px-1 py-0.5 rounded border border-white/10 tracking-wider">
+                                  {item.locator}
+                                </span>
                               </div>
                             )}
                           </div>
+                        ) : item.locator ? (
+                          <div className="flex flex-col items-end gap-0.5 my-0.5 leading-none">
+                            <span className="text-white font-mono text-[11px] bg-white/5 px-1.5 py-0.5 rounded border border-white/10 tracking-wider">
+                              {item.locator}
+                            </span>
+                          </div>
                         ) : (
-                          <span className="opacity-20">-</span>
+                          <span className="opacity-20 text-[12px]">-</span>
                         )}
                       </td>
                     </tr>
@@ -469,6 +547,7 @@ export default function App() {
   const [spots, setSpots] = useState<DxSpot[]>([]);
   const [workedQSOs, setWorkedQSOs] = useState<Record<string, string[]>>({});
   const [hoveredSpot, setHoveredSpot] = useState<{ spot: DxSpot, x: number, y: number, color?: string } | null>(null);
+  const [alertedSpotKeys, setAlertedSpotKeys] = useState<Set<string>>(new Set());
   const consoleRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
@@ -533,6 +612,36 @@ export default function App() {
 
     return () => ws.close();
   }, []);
+
+  // Auto-deactivate spot alert if station is worked
+  useEffect(() => {
+    if (!workedQSOs || Object.keys(workedQSOs).length === 0) return;
+    
+    setAlertedSpotKeys(prev => {
+      if (prev.size === 0) return prev;
+      let changed = false;
+      const next = new Set(prev);
+      
+      const allWorked = new Set<string>();
+      Object.values(workedQSOs).forEach((calls: string[]) => {
+        if (Array.isArray(calls)) {
+          calls.forEach(c => allWorked.add(c.toUpperCase()));
+        }
+      });
+
+      prev.forEach(key => {
+        // check if key is spot ID or direct callsign
+        const spot = spots.find(s => s.id === key || s.dxCall === key);
+        const call = spot ? spot.dxCall.toUpperCase() : key.toUpperCase();
+        if (allWorked.has(call)) {
+          next.delete(key);
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [workedQSOs, spots]);
 
   // Auto-scroll console
   useEffect(() => {
@@ -611,11 +720,23 @@ export default function App() {
     setHoveredSpot({ spot, x, y, color: color || '#38bdf8' });
   };
 
+  const toggleSpotAlert = (key: string) => {
+    setAlertedSpotKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   if (!config) return (
     <div className="h-screen bg-brand-bg flex items-center justify-center font-mono text-[11px] uppercase tracking-[0.2em] text-brand-accent">
       <div className="flex items-center gap-3">
         <Radio size={20} className="animate-spin" />
-        BOOTING MULTI-BANDMAP SYSTEM v0.3.0...
+        BOOTING MULTI-BANDMAP SYSTEM v0.3.1...
       </div>
     </div>
   );
@@ -629,7 +750,7 @@ export default function App() {
             <Radio size={16} className="text-brand-accent" />
             <div className="flex items-baseline gap-1.5">
               <h1 className="font-bold tracking-widest text-brand-accent uppercase text-[13px]">Multi-Bandmap</h1>
-              <span className="text-[9px] font-mono text-text-dim opacity-60">v0.3.0</span>
+              <span className="text-[9px] font-mono text-text-dim opacity-60">v0.3.1</span>
             </div>
           </div>
           
@@ -672,12 +793,28 @@ export default function App() {
                         </button>
                       );
                     })}
-                    <div className="border-t border-brand-border mt-1 pt-1">
+                    <div className="border-t border-brand-border mt-1 pt-1 space-y-0.5">
+                      <div className="text-[10px] uppercase font-bold text-text-dim px-3 py-1">Elemente</div>
+                      <button 
+                        onClick={() => saveConfig({ ...config, showFlags: config.showFlags !== false ? false : true })}
+                        className="w-full flex items-center justify-between px-3 py-1.5 rounded hover:bg-brand-elevated transition-colors group"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Flag size={13} className={config.showFlags !== false ? "text-brand-accent" : "text-text-dim opacity-50"} />
+                          <span className="text-[11px] text-text-dim group-hover:text-white truncate">
+                            Landesflaggen
+                          </span>
+                        </div>
+                        {config.showFlags !== false ? <Eye size={13} className="text-brand-accent" /> : <EyeOff size={13} className="text-text-dim opacity-50" />}
+                      </button>
+
                       <button 
                         onClick={toggleBottomArea}
                         className="w-full flex items-center justify-between px-3 py-1.5 rounded hover:bg-brand-elevated transition-colors group"
                       >
-                        <span className="text-[11px] text-text-dim group-hover:text-white">System Konsole</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-[11px] text-text-dim group-hover:text-white">System Konsole</span>
+                        </div>
                         {config.bottomAreaVisible ? <Eye size={13} className="text-brand-accent" /> : <EyeOff size={13} className="text-text-dim opacity-50" />}
                       </button>
                     </div>
@@ -844,7 +981,7 @@ export default function App() {
 
       {/* Main Grid area */}
       <main className="flex-1 flex overflow-hidden border-b border-brand-border">
-        <div className="flex-1 flex overflow-x-hidden min-h-0 bg-brand-bg w-full">
+        <div className="flex-1 flex overflow-x-auto min-h-0 bg-brand-bg w-full scrollbar-thin scrollbar-thumb-brand-border">
           <AnimatePresence mode="popLayout">
             {config.columns
               .filter(col => col.visible)
@@ -855,6 +992,9 @@ export default function App() {
                   columnIndex={idx}
                   spots={spots}
                   workedQSOs={workedQSOs}
+                  showFlags={config.showFlags !== false}
+                  alertedSpotKeys={alertedSpotKeys}
+                  onToggleAlert={toggleSpotAlert}
                   onUpdate={updateColumn}
                   onHide={(id) => toggleColumn(id)}
                   onHoverSpot={handleHoverSpot}
