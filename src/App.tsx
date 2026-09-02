@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { AppConfig, HAM_BANDS, DxSpot, BAND_FREQUENCIES } from "./types";
-import { getCountryInfoByCallsign } from "./dxcc";
+import { AppConfig, HAM_BANDS, DxSpot, BAND_FREQUENCIES, CONTINENTS, ColumnConfig } from "./types";
+import { getCountryInfoByCallsign, getContinentByCallsign } from "./dxcc";
 import { 
   Settings, 
   Eye, 
@@ -21,10 +21,15 @@ import {
   Bell,
   Volume2,
   VolumeX,
-  Map as MapIcon
+  Map as MapIcon,
+  Filter,
+  Sliders,
+  Sparkles,
+  RotateCcw
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { SpotQthMap } from "./components/SpotQthMap";
+import { ChannelConfigModal } from "./components/ChannelConfigModal";
 
 // --- Color Helpers & Presets ---
 
@@ -124,7 +129,7 @@ export const playAlertChime = () => {
 // --- Components ---
 
 interface BandColumnProps {
-  config: any;
+  config: ColumnConfig;
   columnIndex?: number;
   spots: DxSpot[];
   workedQSOs: Record<string, string[]>;
@@ -132,9 +137,10 @@ interface BandColumnProps {
   alertedSpotKeys?: Set<string>;
   selectedSpotCall?: string;
   onToggleAlert?: (key: string) => void;
-  onUpdate: (id: string, updates: any) => void;
+  onUpdate: (id: string, updates: Partial<ColumnConfig>) => void;
   onHide: (id: string) => void;
   onSelectSpot: (spot: DxSpot, e: React.MouseEvent, color?: string) => void;
+  onOpenSettings?: (id: string) => void;
 }
 
 const BandColumn: React.FC<BandColumnProps> = ({ 
@@ -148,7 +154,8 @@ const BandColumn: React.FC<BandColumnProps> = ({
   onToggleAlert = (_key: string) => {},
   onUpdate, 
   onHide,
-  onSelectSpot
+  onSelectSpot,
+  onOpenSettings
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(config.title);
@@ -179,13 +186,39 @@ const BandColumn: React.FC<BandColumnProps> = ({
     };
   }, [showColorPicker]);
 
+  const hasActiveContinentFilter = Boolean(
+    config.allowedContinents && 
+    config.allowedContinents.length > 0 && 
+    config.allowedContinents.length < CONTINENTS.length
+  );
+
   const filteredSpots = React.useMemo(() => {
     const range = BAND_FREQUENCIES[config.band];
+    if (!range) return [];
     
-    // Deduplicate: Keep only the newest spot per DX callsing on this band
+    // Deduplicate: Keep only the newest spot per DX callsign on this band
     const spotMap = new Map<string, DxSpot>();
     spots.forEach(s => {
       if (s.frequency >= range.min && s.frequency <= range.max) {
+        // Continent filtering
+        if (hasActiveContinentFilter && config.allowedContinents) {
+          const dxCont = getContinentByCallsign(s.dxCall);
+          const spotterCont = getContinentByCallsign(s.spotterCall);
+          const target = config.continentFilterTarget || 'dx';
+
+          let matches = false;
+          if (target === 'spotter') {
+            matches = config.allowedContinents.includes(spotterCont);
+          } else if (target === 'both') {
+            matches = config.allowedContinents.includes(dxCont) && config.allowedContinents.includes(spotterCont);
+          } else {
+            // default 'dx': DX station continent
+            matches = config.allowedContinents.includes(dxCont);
+          }
+
+          if (!matches) return;
+        }
+
         const existing = spotMap.get(s.dxCall);
         if (!existing || new Date(s.timestamp) > new Date(existing.timestamp)) {
           spotMap.set(s.dxCall, s);
@@ -195,7 +228,7 @@ const BandColumn: React.FC<BandColumnProps> = ({
 
     return (Array.from(spotMap.values()) as DxSpot[])
       .sort((a, b) => a.frequency - b.frequency);
-  }, [spots, config.band]);
+  }, [spots, config.band, hasActiveContinentFilter, config.allowedContinents, config.continentFilterTarget]);
 
   // Find the spot closest to the current VFO frequency
   const closestSpotId = React.useMemo(() => {
@@ -259,18 +292,45 @@ const BandColumn: React.FC<BandColumnProps> = ({
               </button>
             </div>
           ) : (
-            <span 
-              className="text-[11px] font-bold uppercase tracking-wider text-text-dim truncate cursor-pointer px-1 rounded transition-colors"
-              style={{ color: '#ffffff' }}
-              title="Klicken zum Umbenennen"
-              onClick={() => setIsEditingTitle(true)}
-            >
-              {config.title}
-            </span>
+            <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <span 
+                className="text-[11px] font-bold uppercase tracking-wider text-text-dim truncate cursor-pointer px-1 rounded transition-colors"
+                style={{ color: '#ffffff' }}
+                title="Klicken zum Umbenennen"
+                onClick={() => setIsEditingTitle(true)}
+              >
+                {config.title}
+              </span>
+              {hasActiveContinentFilter && (
+                <button
+                  type="button"
+                  onClick={() => onOpenSettings?.(config.id)}
+                  className="flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border transition-all hover:scale-105 shrink-0"
+                  style={{
+                    backgroundColor: hexToRgba(accentColor, 0.15),
+                    borderColor: hexToRgba(accentColor, 0.4),
+                    color: accentColor,
+                  }}
+                  title={`Kontinent-Filter aktiv: ${config.allowedContinents?.join(', ')} (Klicken zum Bearbeiten)`}
+                >
+                  <Filter size={9} />
+                  <span>{config.allowedContinents?.join(',')}</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
 
         <div className="flex items-center gap-1 shrink-0 relative">
+          {/* Channel Settings & Filter Button */}
+          <button 
+            onClick={() => onOpenSettings?.(config.id)}
+            className="w-5 h-5 rounded-md hover:bg-white/10 flex items-center justify-center transition-all p-0.5 text-text-dim hover:text-white"
+            title="Kanal-Einstellungen & Kontinent-Filter"
+          >
+            <Sliders size={12} />
+          </button>
+
           {/* Color Picker Button & Popover */}
           <div className="relative">
             <button 
@@ -412,7 +472,22 @@ const BandColumn: React.FC<BandColumnProps> = ({
           <tbody className="text-gray-300">
             {filteredSpots.length === 0 ? (
               <tr>
-                <td colSpan={3} className="py-3 text-center text-text-dim/30 text-[11px] italic">Keine Spots in {config.band}</td>
+                <td colSpan={3} className="py-4 text-center px-2">
+                  <div className="text-text-dim/40 text-[11px] italic">
+                    {hasActiveContinentFilter 
+                      ? `Keine Spots für ${config.allowedContinents?.join(', ')} auf ${config.band}`
+                      : `Keine Spots in ${config.band}`}
+                  </div>
+                  {hasActiveContinentFilter && (
+                    <button 
+                      type="button"
+                      onClick={() => onUpdate(config.id, { allowedContinents: [] })}
+                      className="text-[10px] text-brand-accent hover:underline mt-1 cursor-pointer font-sans"
+                    >
+                      Filter aufheben
+                    </button>
+                  )}
+                </td>
               </tr>
             ) : (
               filteredSpots.map((item) => {
@@ -604,7 +679,9 @@ const BandColumn: React.FC<BandColumnProps> = ({
 export default function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [showAnzeigeMenu, setShowAnzeigeMenu] = useState(false);
+  const [showChannelsMenu, setShowChannelsMenu] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [configModalChannelId, setConfigModalChannelId] = useState<string | null>(null);
   const [didConfirmReset, setDidConfirmReset] = useState(false);
   const [clusterLines, setClusterLines] = useState<string[]>([]);
   const [clusterStatus, setClusterStatus] = useState("DISCONNECTED");
@@ -620,6 +697,24 @@ export default function App() {
   const detailModalRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
   const retentionHoursRef = useRef(4);
+
+  // Close dropdowns on click outside
+  useEffect(() => {
+    const handleDropdownOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-dropdown="true"]')) {
+        setShowAnzeigeMenu(false);
+        setShowChannelsMenu(false);
+        setShowSettingsMenu(false);
+      }
+    };
+    if (showAnzeigeMenu || showChannelsMenu || showSettingsMenu) {
+      document.addEventListener("mousedown", handleDropdownOutsideClick);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleDropdownOutsideClick);
+    };
+  }, [showAnzeigeMenu, showChannelsMenu, showSettingsMenu]);
 
   // Close detail window on outside click or Escape key
   useEffect(() => {
@@ -858,7 +953,146 @@ export default function App() {
           </div>
           
           <nav className="flex items-center gap-1">
-            <div className="relative">
+            {/* Kanäle & Filter Menü */}
+            <div className="relative" data-dropdown="true">
+              <button 
+                type="button"
+                onClick={() => {
+                  setShowChannelsMenu(!showChannelsMenu);
+                  setShowAnzeigeMenu(false);
+                  setShowSettingsMenu(false);
+                }}
+                className={`text-[12px] px-3 py-1 rounded transition-all flex items-center gap-1.5 ${
+                  showChannelsMenu 
+                    ? 'bg-brand-elevated text-brand-accent' 
+                    : 'hover:bg-brand-elevated text-text-dim hover:text-text-main'
+                }`}
+              >
+                <Sliders size={12} />
+                <span>Kanäle</span>
+                {config.columns.some(c => (c.allowedContinents?.length ?? 0) > 0 && (c.allowedContinents?.length ?? 0) < CONTINENTS.length) && (
+                  <span className="px-1 py-0.2 rounded-full bg-brand-accent text-black font-bold font-mono text-[9px] flex items-center justify-center leading-tight">
+                    {config.columns.filter(c => (c.allowedContinents?.length ?? 0) > 0 && (c.allowedContinents?.length ?? 0) < CONTINENTS.length).length}
+                  </span>
+                )}
+                <ChevronDown size={12} className={showChannelsMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />
+              </button>
+              
+              <AnimatePresence>
+                {showChannelsMenu && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 5 }}
+                    className="absolute left-0 mt-1 w-80 bg-brand-surface border border-brand-border rounded-lg shadow-2xl p-1.5 z-50 text-left"
+                  >
+                    <div className="text-[10px] uppercase font-bold text-text-dim px-2.5 py-1.5 border-b border-brand-border mb-1 flex items-center justify-between">
+                      <span>Kanal-Verwaltung & Filter</span>
+                      <span className="text-[9px] text-text-dim/70 font-normal">Kanal anklicken</span>
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {config.columns.map((col, idx) => {
+                        const colColor = getColumnColor(col, idx);
+                        const hasFilter = (col.allowedContinents?.length ?? 0) > 0 && (col.allowedContinents?.length ?? 0) < CONTINENTS.length;
+                        return (
+                          <div 
+                            key={col.id}
+                            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-brand-elevated transition-colors group cursor-pointer"
+                            onClick={() => {
+                              setConfigModalChannelId(col.id);
+                              setShowChannelsMenu(false);
+                            }}
+                          >
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span 
+                                className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/20 shadow-xs" 
+                                style={{ backgroundColor: colColor }}
+                              />
+                              <div className="min-w-0">
+                                <div className="text-[11px] font-bold text-white group-hover:text-brand-accent transition-colors truncate">
+                                  {col.title} <span className="font-normal text-text-dim">({col.band})</span>
+                                </div>
+                                <div className="text-[9px] flex items-center gap-1 font-mono">
+                                  {hasFilter ? (
+                                    <span className="text-brand-accent font-semibold flex items-center gap-0.5">
+                                      <Filter size={9} />
+                                      {col.allowedContinents?.join(", ")}
+                                    </span>
+                                  ) : (
+                                    <span className="text-text-dim opacity-50">Alle Kontinente</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={() => toggleColumn(col.id)}
+                                className="p-1 rounded hover:bg-white/10 text-text-dim hover:text-white transition-colors"
+                                title={col.visible ? "Kanal ausblenden" : "Kanal einblenden"}
+                              >
+                                {col.visible ? (
+                                  <Eye size={13} style={{ color: colColor }} />
+                                ) : (
+                                  <EyeOff size={13} className="text-text-dim opacity-40" />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConfigModalChannelId(col.id);
+                                  setShowChannelsMenu(false);
+                                }}
+                                className="p-1 rounded hover:bg-white/10 text-text-dim hover:text-brand-accent transition-colors"
+                                title="Kanal-Einstellungen & Kontinent-Filter öffnen"
+                              >
+                                <Sliders size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="border-t border-brand-border mt-1.5 pt-1.5 px-1 space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newCols = config.columns.map(c => {
+                            if (["2m", "70cm", "23cm", "13cm", "6cm", "3cm", "4m"].includes(c.band)) {
+                              return { ...c, allowedContinents: ["EU"] };
+                            }
+                            return c;
+                          });
+                          saveConfig({ ...config, columns: newCols });
+                        }}
+                        className="w-full text-left px-2.5 py-1 text-[10px] text-brand-accent hover:bg-brand-accent/10 rounded flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Sparkles size={11} />
+                        <span>UKW-Schnellfilter: VHF/UHF nur Europa</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newCols = config.columns.map(c => ({ ...c, allowedContinents: [] }));
+                          saveConfig({ ...config, columns: newCols });
+                        }}
+                        className="w-full text-left px-2.5 py-1 text-[10px] text-text-dim hover:text-white hover:bg-white/5 rounded flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <RotateCcw size={11} />
+                        <span>Alle Kontinent-Filter zurücksetzen</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Anzeige Menü */}
+            <div className="relative" data-dropdown="true">
               <button 
                 onClick={() => setShowAnzeigeMenu(!showAnzeigeMenu)}
                 className={`text-[12px] px-3 py-1 rounded transition-all flex items-center gap-1.5 ${showAnzeigeMenu ? 'bg-brand-elevated text-brand-accent' : 'hover:bg-brand-elevated text-text-dim hover:text-text-main'}`}
@@ -1172,6 +1406,7 @@ export default function App() {
                   onUpdate={updateColumn}
                   onHide={(id) => toggleColumn(id)}
                   onSelectSpot={handleSelectSpot}
+                  onOpenSettings={(id) => setConfigModalChannelId(id)}
                 />
               ))}
           </AnimatePresence>
@@ -1562,6 +1797,17 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Channel Configuration & Continent Filter Modal */}
+      <ChannelConfigModal
+        isOpen={Boolean(configModalChannelId)}
+        channelId={configModalChannelId}
+        columns={config.columns}
+        spots={spots}
+        onClose={() => setConfigModalChannelId(null)}
+        onUpdateColumn={updateColumn}
+        onSelectChannel={(id) => setConfigModalChannelId(id)}
+      />
     </div>
   );
 }

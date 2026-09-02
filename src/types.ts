@@ -5,7 +5,25 @@ export interface ColumnConfig {
   visible: boolean;
   color?: string;
   currentFrequency?: number;
+  allowedContinents?: string[]; // e.g. ['EU', 'NA']
+  continentFilterTarget?: 'dx' | 'both' | 'spotter'; // default: 'dx'
 }
+
+export interface ContinentInfo {
+  code: string;
+  name: string;
+  flag: string;
+}
+
+export const CONTINENTS: ContinentInfo[] = [
+  { code: "EU", name: "Europa", flag: "🇪🇺" },
+  { code: "NA", name: "Nordamerika", flag: "🇺🇸" },
+  { code: "SA", name: "Südamerika", flag: "🇧🇷" },
+  { code: "AS", name: "Asien", flag: "🇯🇵" },
+  { code: "AF", name: "Afrika", flag: "🇿🇦" },
+  { code: "OC", name: "Ozeanien", flag: "🇦🇺" },
+  { code: "AN", name: "Antarktis", flag: "🇦🇶" },
+];
 
 export interface DxSpot {
   id: string;

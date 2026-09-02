@@ -3,6 +3,7 @@ export interface DXCCInfo {
   name: string;
   flag: string;
   code: string;
+  continent: string; // 'EU' | 'NA' | 'SA' | 'AS' | 'AF' | 'OC' | 'AN' | 'UN'
 }
 
 // Comprehensive map of international DXCC entities and ITU prefix allocations
@@ -765,11 +766,140 @@ const IGNORED_SUFFIXES = new Set([
 ]);
 
 /**
- * Parses an amateur radio callsign to find its DXCC country and flag.
+ * Standard continent mapping by ISO country/territory code
+ */
+export const CODE_TO_CONTINENT: Record<string, string> = {
+  // EU (Europe)
+  "AD": "EU", "AL": "EU", "AT": "EU", "AX": "EU", "BA": "EU", "BE": "EU", "BG": "EU", "BY": "EU",
+  "CH": "EU", "CY": "EU", "CZ": "EU", "DE": "EU", "DK": "EU", "EE": "EU", "ES": "EU", "FI": "EU",
+  "FO": "EU", "FR": "EU", "GB-ENG": "EU", "GB-NIR": "EU", "GB-SCT": "EU", "GB-WLS": "EU", "GG": "EU",
+  "GI": "EU", "GR": "EU", "HR": "EU", "HU": "EU", "IE": "EU", "IM": "EU", "IS": "EU", "IT": "EU",
+  "JE": "EU", "LI": "EU", "LT": "EU", "LU": "EU", "LV": "EU", "MC": "EU", "MD": "EU", "ME": "EU",
+  "MK": "EU", "MT": "EU", "NL": "EU", "NO": "EU", "PL": "EU", "PT": "EU", "RO": "EU", "RS": "EU",
+  "RU": "EU", "SE": "EU", "SI": "EU", "SJ": "EU", "SK": "EU", "SM": "EU", "TR": "EU", "UA": "EU",
+  "VA": "EU", "XK": "EU",
+
+  // NA (North America & Central America & Caribbean)
+  "AG": "NA", "AI": "NA", "AW": "NA", "BB": "NA", "BL": "NA", "BM": "NA", "BQ": "NA", "BS": "NA",
+  "BZ": "NA", "CA": "NA", "CR": "NA", "CU": "NA", "CW": "NA", "DM": "NA", "DO": "NA", "GD": "NA",
+  "GL": "NA", "GP": "NA", "GT": "NA", "HN": "NA", "HT": "NA", "JM": "NA", "KN": "NA", "KY": "NA",
+  "LC": "NA", "MF": "NA", "MQ": "NA", "MS": "NA", "MX": "NA", "NI": "NA", "PA": "NA", "PM": "NA",
+  "PR": "NA", "SV": "NA", "SX": "NA", "TC": "NA", "TT": "NA", "US": "NA", "VC": "NA", "VG": "NA", "VI": "NA",
+
+  // SA (South America)
+  "AR": "SA", "BO": "SA", "BR": "SA", "CL": "SA", "CO": "SA", "EC": "SA", "FK": "SA", "GF": "SA",
+  "GY": "SA", "PE": "SA", "PY": "SA", "SR": "SA", "UY": "SA", "VE": "SA",
+
+  // AS (Asia)
+  "AE": "AS", "AF": "AS", "AM": "AS", "AZ": "AS", "BD": "AS", "BH": "AS", "BN": "AS", "BT": "AS",
+  "CN": "AS", "GE": "AS", "HK": "AS", "IL": "AS", "IN": "AS", "IQ": "AS", "IR": "AS", "JO": "AS",
+  "JP": "AS", "KG": "AS", "KH": "AS", "KP": "AS", "KR": "AS", "KW": "AS", "KZ": "AS", "LA": "AS",
+  "LB": "AS", "LK": "AS", "MM": "AS", "MN": "AS", "MO": "AS", "MV": "AS", "MY": "AS", "NP": "AS",
+  "OM": "AS", "PK": "AS", "PS": "AS", "QA": "AS", "SA": "AS", "SG": "AS", "SY": "AS", "TH": "AS",
+  "TJ": "AS", "TL": "AS", "TM": "AS", "TW": "AS", "UZ": "AS", "VN": "AS", "YE": "AS",
+
+  // AF (Africa)
+  "AC": "AF", "AO": "AF", "BF": "AF", "BI": "AF", "BJ": "AF", "BW": "AF", "CD": "AF", "CF": "AF",
+  "CG": "AF", "CI": "AF", "CM": "AF", "CV": "AF", "DJ": "AF", "DZ": "AF", "EG": "AF", "EH": "AF",
+  "ER": "AF", "ET": "AF", "GA": "AF", "GH": "AF", "GM": "AF", "GN": "AF", "GQ": "AF", "GW": "AF",
+  "IC": "AF", "IO": "AF", "KE": "AF", "KM": "AF", "LR": "AF", "LS": "AF", "LY": "AF", "MA": "AF",
+  "MG": "AF", "ML": "AF", "MR": "AF", "MU": "AF", "MW": "AF", "MZ": "AF", "NA": "AF", "NE": "AF",
+  "NG": "AF", "RE": "AF", "RW": "AF", "SC": "AF", "SD": "AF", "SH": "AF", "SL": "AF", "SN": "AF",
+  "SO": "AF", "SS": "AF", "ST": "AF", "SZ": "AF", "TA": "AF", "TD": "AF", "TG": "AF", "TN": "AF",
+  "TZ": "AF", "UG": "AF", "YT": "AF", "ZA": "AF", "ZM": "AF", "ZW": "AF",
+
+  // OC (Oceania)
+  "AS": "OC", "AU": "OC", "CC": "OC", "CK": "OC", "CX": "OC", "FJ": "OC", "FM": "OC", "GU": "OC",
+  "ID": "OC", "KI": "OC", "MH": "OC", "MP": "OC", "NC": "OC", "NF": "OC", "NR": "OC", "NU": "OC",
+  "NZ": "OC", "PF": "OC", "PG": "OC", "PH": "OC", "PN": "OC", "PW": "OC", "SB": "OC", "TK": "OC",
+  "TO": "OC", "TV": "OC", "VU": "OC", "WF": "OC", "WS": "OC",
+
+  // AN (Antarctica)
+  "AQ": "AN", "TF": "AN",
+
+  // UN / International
+  "UN": "UN"
+};
+
+/**
+ * Resolves continent, taking into account specific amateur radio prefix subdivisions
+ * (e.g., Asiatic Russia vs European Russia, Hawaii in Oceania, Alaska in North America).
+ */
+export function resolveContinent(prefix: string, countryCode: string, callsign?: string): string {
+  const call = (callsign || prefix).toUpperCase();
+
+  // Hawaii & US Pacific: KH6, AH6, NH6, WH6, KH0, KH2
+  if (/^(KH6|AH6|NH6|WH6|KH7|AH7|NH7|WH7|KH0|KH2)/.test(call)) {
+    return "OC";
+  }
+  // Alaska: KL7, AL7, NL7, WL7
+  if (/^(KL7|AL7|NL7|WL7)/.test(call)) {
+    return "NA";
+  }
+  // Puerto Rico / Virgin Islands
+  if (/^(KP4|NP4|WP4|KP2|NP2|WP2)/.test(call)) {
+    return "NA";
+  }
+  // Asiatic Russia (Zone 16-19 call areas 9 and 0)
+  if (/^(UA[890]|RA[890]|RU[890]|RV[890]|RW[890]|RX[890]|RY[890]|RZ[890]|R[890]|UB[890]|UC[890]|UD[890]|UI[890])/.test(call)) {
+    return "AS";
+  }
+  // Kaliningrad
+  if (/^(UA2|RA2|UI2)/.test(call)) {
+    return "EU";
+  }
+  // European Russia
+  if (/^(UA[1-7]|RA[1-7]|RU[1-7]|RV[1-7]|RW[1-7]|RZ[1-7]|R[1-7])/.test(call)) {
+    return "EU";
+  }
+  // Canary Islands
+  if (prefix.startsWith("EA8") || prefix.startsWith("EB8") || prefix.startsWith("EC8") || prefix.startsWith("ED8") || prefix.startsWith("EE8") || prefix.startsWith("EF8")) {
+    return "AF";
+  }
+  // Madeira
+  if (prefix.startsWith("CT3") || prefix.startsWith("CS3") || prefix.startsWith("CR3") || prefix.startsWith("CQ3")) {
+    return "AF";
+  }
+  // Azores
+  if (prefix.startsWith("CU")) {
+    return "EU";
+  }
+  // Antarctica
+  if (prefix.startsWith("DP0") || prefix.startsWith("DP1") || prefix.startsWith("RI1AN") || prefix.startsWith("KC4")) {
+    return "AN";
+  }
+
+  return CODE_TO_CONTINENT[countryCode] || "UN";
+}
+
+export const CONTINENT_NAMES: Record<string, string> = {
+  "EU": "Europa",
+  "NA": "Nordamerika",
+  "SA": "Südamerika",
+  "AS": "Asien",
+  "AF": "Afrika",
+  "OC": "Ozeanien",
+  "AN": "Antarktis",
+  "UN": "Unbekannt"
+};
+
+export const CONTINENT_FLAGS: Record<string, string> = {
+  "EU": "🇪🇺",
+  "NA": "🇺🇸",
+  "SA": "🇧🇷",
+  "AS": "🇯🇵",
+  "AF": "🇿🇦",
+  "OC": "🇦🇺",
+  "AN": "🇦🇶",
+  "UN": "🏳️"
+};
+
+/**
+ * Parses an amateur radio callsign to find its DXCC country, flag, and continent.
  * Handles portable prefixes (e.g. EA8/DL1ABC, DL1ABC/EA8, W4/G3TXF, etc.)
  */
 export const getCountryInfoByCallsign = (callsign: string): DXCCInfo => {
-  if (!callsign) return { prefix: "", name: "Unbekannt", flag: "🏳️", code: "UN" };
+  if (!callsign) return { prefix: "", name: "Unbekannt", flag: "🏳️", code: "UN", continent: "UN" };
 
   const rawCall = callsign.trim().toUpperCase();
 
@@ -782,18 +912,16 @@ export const getCountryInfoByCallsign = (callsign: string): DXCCInfo => {
 
     if (relevantParts.length > 1) {
       // 1. Check if first part is a geographic prefix (e.g., EA8/DL1ABC, SV9/OK1KIR, IS0/IZ2XYZ)
-      // Usually shorter than the base callsign or pure prefix (2-4 chars)
       const firstPart = relevantParts[0];
-      const matchFirst = matchPrefix(firstPart);
+      const matchFirst = matchPrefix(firstPart, rawCall);
       
-      // If the first part looks like a guest country prefix and second part has letters/numbers (a full call)
       if (matchFirst && (firstPart.length <= 4 || firstPart.length < relevantParts[1].length)) {
         return matchFirst;
       }
 
       // 2. Check if second part is a geographic modifier (e.g., DL1ABC/EA8, F5XYZ/TK)
       const secondPart = relevantParts[1];
-      const matchSecond = matchPrefix(secondPart);
+      const matchSecond = matchPrefix(secondPart, rawCall);
       if (matchSecond && (secondPart.length <= 4 || secondPart.length < relevantParts[0].length)) {
         return matchSecond;
       }
@@ -801,30 +929,40 @@ export const getCountryInfoByCallsign = (callsign: string): DXCCInfo => {
 
     // Fallback: check all non-ignored parts
     for (const part of relevantParts) {
-      const match = matchPrefix(part);
+      const match = matchPrefix(part, rawCall);
       if (match) return match;
     }
   }
 
   // Single callsign or fallback
-  const directMatch = matchPrefix(rawCall);
+  const directMatch = matchPrefix(rawCall, rawCall);
   if (directMatch) return directMatch;
 
-  return { prefix: "", name: "Unbekannt", flag: "🏳️", code: "UN" };
+  return { prefix: "", name: "Unbekannt", flag: "🏳️", code: "UN", continent: "UN" };
+};
+
+/**
+ * Convenience helper to directly retrieve the continent code for a callsign.
+ */
+export const getContinentByCallsign = (callsign: string): string => {
+  return getCountryInfoByCallsign(callsign).continent;
 };
 
 /**
  * Greedily matches the callsign or prefix against the DXCC database.
  */
-function matchPrefix(str: string): DXCCInfo | null {
+function matchPrefix(str: string, fullCallsign?: string): DXCCInfo | null {
   if (!str) return null;
   const cleanStr = str.trim().toUpperCase();
 
   for (const prefix of SORTED_PREFIXES) {
     if (cleanStr.startsWith(prefix)) {
+      const entry = DXCC_MAP[prefix];
+      const continent = resolveContinent(prefix, entry.code, fullCallsign || cleanStr);
       return {
         prefix,
-        ...DXCC_MAP[prefix]
+        ...entry,
+        continent
       };
     }
   }
