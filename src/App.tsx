@@ -20,9 +20,11 @@ import {
   Flag,
   Bell,
   Volume2,
-  VolumeX
+  VolumeX,
+  Map as MapIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { SpotQthMap } from "./components/SpotQthMap";
 
 // --- Color Helpers & Presets ---
 
@@ -128,10 +130,11 @@ interface BandColumnProps {
   workedQSOs: Record<string, string[]>;
   showFlags?: boolean;
   alertedSpotKeys?: Set<string>;
+  selectedSpotCall?: string;
   onToggleAlert?: (key: string) => void;
   onUpdate: (id: string, updates: any) => void;
   onHide: (id: string) => void;
-  onHoverSpot: (spot: DxSpot | null, e?: React.MouseEvent, color?: string) => void;
+  onSelectSpot: (spot: DxSpot, e: React.MouseEvent, color?: string) => void;
 }
 
 const BandColumn: React.FC<BandColumnProps> = ({ 
@@ -141,10 +144,11 @@ const BandColumn: React.FC<BandColumnProps> = ({
   workedQSOs,
   showFlags = true,
   alertedSpotKeys = new Set(),
+  selectedSpotCall,
   onToggleAlert = (_key: string) => {},
   onUpdate, 
   onHide,
-  onHoverSpot
+  onSelectSpot
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(config.title);
@@ -189,7 +193,7 @@ const BandColumn: React.FC<BandColumnProps> = ({
       }
     });
 
-    return Array.from(spotMap.values())
+    return (Array.from(spotMap.values()) as DxSpot[])
       .sort((a, b) => a.frequency - b.frequency);
   }, [spots, config.band]);
 
@@ -414,6 +418,7 @@ const BandColumn: React.FC<BandColumnProps> = ({
               filteredSpots.map((item) => {
                 const isClosest = item.dxCall === closestSpotId;
                 const isHovered = hoveredRowId === item.dxCall;
+                const isSelected = selectedSpotCall === item.dxCall;
                 const spotKey = item.id || item.dxCall;
                 const isWorked = Boolean(workedQSOs[config.band]?.includes(item.dxCall.toUpperCase()));
                 const isAlerted = !isWorked && (alertedSpotKeys.has(spotKey) || alertedSpotKeys.has(item.dxCall));
@@ -424,23 +429,29 @@ const BandColumn: React.FC<BandColumnProps> = ({
                     <tr 
                       key={item.dxCall} 
                       ref={isClosest ? activeRowRef : null}
-                      onMouseEnter={(e) => {
+                      data-spot-row="true"
+                      onClick={(e) => {
+                        onSelectSpot(item, e, accentColor);
+                      }}
+                      onMouseEnter={() => {
                         setHoveredRowId(item.dxCall);
-                        onHoverSpot(item, e, accentColor);
                       }}
                       onMouseLeave={() => {
                         setHoveredRowId(null);
-                        onHoverSpot(null);
                       }}
                       style={{
                         backgroundColor: isAlerted
                           ? hexToRgba(accentColor, 0.24)
+                          : isSelected
+                          ? hexToRgba(accentColor, 0.28)
                           : isClosest 
                           ? hexToRgba(accentColor, 0.22) 
                           : isHovered 
                           ? hexToRgba(accentColor, 0.12) 
                           : 'transparent',
                         borderLeft: isAlerted
+                          ? `3px solid ${accentColor}`
+                          : isSelected
                           ? `3px solid ${accentColor}`
                           : isClosest 
                           ? `3px solid ${accentColor}` 
@@ -449,9 +460,11 @@ const BandColumn: React.FC<BandColumnProps> = ({
                           : '3px solid transparent',
                         boxShadow: isAlerted 
                           ? `inset 0 0 0 1.5px ${accentColor}, 0 0 14px ${hexToRgba(accentColor, 0.45)}` 
+                          : isSelected
+                          ? `inset 0 0 0 1px ${hexToRgba(accentColor, 0.6)}`
                           : undefined
                       }}
-                      className={`transition-colors border-b border-white/[0.03] cursor-default group/row relative align-middle ${
+                      className={`transition-colors border-b border-white/[0.03] cursor-pointer group/row relative align-middle ${
                         isAlerted ? 'animate-pulse z-10' : ''
                       }`}
                     >
@@ -459,7 +472,7 @@ const BandColumn: React.FC<BandColumnProps> = ({
                       <td 
                         className="py-1.5 pl-1 pr-1 font-bold font-mono align-middle whitespace-nowrap leading-none text-[14px] sm:text-[15px]"
                         style={{
-                          color: isAlerted ? '#ffffff' : (isClosest || isHovered ? '#ffffff' : hexToRgba(accentColor, 0.95)),
+                          color: isAlerted || isSelected ? '#ffffff' : (isClosest || isHovered ? '#ffffff' : hexToRgba(accentColor, 0.95)),
                           textDecoration: isClosest ? 'underline' : 'none',
                           textDecorationColor: accentColor
                         }}
@@ -599,14 +612,42 @@ export default function App() {
   const [consoleHeight, setConsoleHeight] = useState(180);
   const [spots, setSpots] = useState<DxSpot[]>([]);
   const [workedQSOs, setWorkedQSOs] = useState<Record<string, string[]>>({});
-  const [hoveredSpot, setHoveredSpot] = useState<{ spot: DxSpot, x: number, y: number, color?: string } | null>(null);
+  const [selectedSpot, setSelectedSpot] = useState<{ spot: DxSpot, x: number, y: number, color?: string } | null>(null);
   const [showTooltipHistory, setShowTooltipHistory] = useState(false);
   const [alertedSpotKeys, setAlertedSpotKeys] = useState<Set<string>>(new Set());
   const consoleRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const detailModalRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
   const retentionHoursRef = useRef(4);
-  const tooltipLeaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Close detail window on outside click or Escape key
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (detailModalRef.current && !detailModalRef.current.contains(e.target as Node)) {
+        const target = e.target as HTMLElement;
+        if (target.closest('[data-spot-row="true"]')) {
+          return;
+        }
+        setSelectedSpot(null);
+        setShowTooltipHistory(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedSpot(null);
+        setShowTooltipHistory(false);
+      }
+    };
+    if (selectedSpot) {
+      document.addEventListener("mousedown", handleOutsideClick);
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedSpot]);
 
   // Update ref when config changes
   useEffect(() => {
@@ -762,32 +803,21 @@ export default function App() {
     setDidConfirmReset(false);
   };
 
-  const handleHoverSpot = (spot: DxSpot | null, e?: React.MouseEvent, color?: string) => {
-    if (tooltipLeaveTimeoutRef.current) {
-      clearTimeout(tooltipLeaveTimeoutRef.current);
-      tooltipLeaveTimeoutRef.current = null;
-    }
-
-    if (!spot || !e) {
-      // Small grace delay before hiding tooltip to allow moving cursor into tooltip
-      tooltipLeaveTimeoutRef.current = setTimeout(() => {
-        setHoveredSpot(null);
-        setShowTooltipHistory(false);
-      }, 250);
+  const handleSelectSpot = (spot: DxSpot, e: React.MouseEvent, color?: string) => {
+    // If clicking the currently selected spot, toggle it closed
+    if (selectedSpot && selectedSpot.spot.dxCall === spot.dxCall && selectedSpot.spot.frequency === spot.frequency) {
+      setSelectedSpot(null);
+      setShowTooltipHistory(false);
       return;
     }
     
-    // Position the tooltip near the mouse, but ensure it stays within viewport
-    const x = Math.min(e.clientX + 10, window.innerWidth - 350);
-    const y = Math.min(e.clientY + 10, window.innerHeight - 380);
+    // Position the modal near the clicked spot/mouse, staying safely within viewport bounds
+    const width = 360;
+    const x = Math.max(10, Math.min(e.clientX + 12, window.innerWidth - width - 16));
+    const y = Math.max(45, Math.min(e.clientY - 20, Math.max(45, window.innerHeight - 520)));
     
-    setHoveredSpot(prev => {
-      // If switching to a different spot, reset history toggle
-      if (prev?.spot.dxCall !== spot.dxCall) {
-        setShowTooltipHistory(false);
-      }
-      return { spot, x, y, color: color || '#38bdf8' };
-    });
+    setShowTooltipHistory(false);
+    setSelectedSpot({ spot, x, y, color: color || '#38bdf8' });
   };
 
   const toggleSpotAlert = (key: string) => {
@@ -879,6 +909,19 @@ export default function App() {
                           </span>
                         </div>
                         {config.showFlags !== false ? <Eye size={13} className="text-brand-accent" /> : <EyeOff size={13} className="text-text-dim opacity-50" />}
+                      </button>
+
+                      <button 
+                        onClick={() => saveConfig({ ...config, showSpotMap: config.showSpotMap !== false ? false : true })}
+                        className="w-full flex items-center justify-between px-3 py-1.5 rounded hover:bg-brand-elevated transition-colors group"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <MapIcon size={13} className={config.showSpotMap !== false ? "text-brand-accent" : "text-text-dim opacity-50"} />
+                          <span className="text-[11px] text-text-dim group-hover:text-white truncate">
+                            QTH Locator-Karte
+                          </span>
+                        </div>
+                        {config.showSpotMap !== false ? <Eye size={13} className="text-brand-accent" /> : <EyeOff size={13} className="text-text-dim opacity-50" />}
                       </button>
 
                       <button 
@@ -1052,6 +1095,24 @@ export default function App() {
                     </div>
                     <div className="text-[9px] text-text-dim italic leading-tight">Spielt einen kurzen, dezenten Hinweiston ab, wenn ein Spot-Alarm per Glocken-Icon aktiviert wird.</div>
                   </div>
+
+                  <div className="space-y-2 pt-2 border-t border-brand-border">
+                    <label 
+                      onClick={() => saveConfig({ ...config, showSpotMap: config.showSpotMap !== false ? false : true })}
+                      className="flex items-center justify-between cursor-pointer group select-none min-w-0"
+                    >
+                      <span className="flex items-center gap-1.5 text-[11px] text-text-dim group-hover:text-white transition-colors truncate">
+                        <MapIcon size={13} className={config.showSpotMap !== false ? "text-brand-accent" : "text-text-dim opacity-50"} />
+                        QTH-Karte in Spot-Details
+                      </span>
+                      <div 
+                        className={`w-8 h-4 rounded-full relative transition-colors cursor-pointer shrink-0 ${config.showSpotMap !== false ? 'bg-brand-accent' : 'bg-brand-elevated border border-brand-border'}`}
+                      >
+                        <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-all transform ${config.showSpotMap !== false ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </div>
+                    </label>
+                    <div className="text-[9px] text-text-dim italic leading-tight">Zeigt die interaktive Locator-Karte mit Standort, Peilung & QRB im Spot-Detailfenster an.</div>
+                  </div>
                   
                   <div className="pt-2 border-t border-brand-border space-y-3">
                     <div className="text-[9px] text-text-dim mb-1 uppercase opacity-50">Zuletzt gespeichert: DX-Spots ({spots.length})</div>
@@ -1106,10 +1167,11 @@ export default function App() {
                   workedQSOs={workedQSOs}
                   showFlags={config.showFlags !== false}
                   alertedSpotKeys={alertedSpotKeys}
+                  selectedSpotCall={selectedSpot?.spot.dxCall}
                   onToggleAlert={toggleSpotAlert}
                   onUpdate={updateColumn}
                   onHide={(id) => toggleColumn(id)}
-                  onHoverSpot={handleHoverSpot}
+                  onSelectSpot={handleSelectSpot}
                 />
               ))}
           </AnimatePresence>
@@ -1204,39 +1266,29 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Global Tooltip */}
+      {/* Global Detail Window (Click to open) */}
       <AnimatePresence>
-        {hoveredSpot && (
+        {selectedSpot && (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            onMouseEnter={() => {
-              if (tooltipLeaveTimeoutRef.current) {
-                clearTimeout(tooltipLeaveTimeoutRef.current);
-                tooltipLeaveTimeoutRef.current = null;
-              }
-            }}
-            onMouseLeave={() => {
-              tooltipLeaveTimeoutRef.current = setTimeout(() => {
-                setHoveredSpot(null);
-                setShowTooltipHistory(false);
-              }, 200);
-            }}
+            ref={detailModalRef}
+            initial={{ opacity: 0, scale: 0.96, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: -4 }}
+            transition={{ duration: 0.12 }}
             style={{ 
-              left: hoveredSpot.x, 
-              top: hoveredSpot.y,
-              borderColor: hexToRgba(hoveredSpot.color || '#38bdf8', 0.4),
-              borderTop: `3px solid ${hoveredSpot.color || '#38bdf8'}`,
-              boxShadow: `0 20px 50px rgba(0,0,0,0.6), 0 0 24px ${hexToRgba(hoveredSpot.color || '#38bdf8', 0.15)}`
+              left: selectedSpot.x, 
+              top: selectedSpot.y,
+              borderColor: hexToRgba(selectedSpot.color || '#38bdf8', 0.4),
+              borderTop: `3px solid ${selectedSpot.color || '#38bdf8'}`,
+              boxShadow: `0 20px 50px rgba(0,0,0,0.65), 0 0 24px ${hexToRgba(selectedSpot.color || '#38bdf8', 0.2)}`
             }}
-            className="fixed z-[999] w-84 bg-brand-surface border p-3.5 pointer-events-auto backdrop-blur-2xl transition-all duration-75 rounded-b-md max-h-[85vh] overflow-y-auto"
+            className="fixed z-[999] w-[360px] bg-brand-surface border p-3.5 pointer-events-auto backdrop-blur-2xl transition-all duration-75 rounded-b-md max-h-[88vh] overflow-y-auto"
           >
             {(() => {
-              const tooltipColor = hoveredSpot.color || '#38bdf8';
-              const dxCountry = getCountryInfoByCallsign(hoveredSpot.spot.dxCall);
-              const spotterCountry = getCountryInfoByCallsign(hoveredSpot.spot.spotterCall);
-              const time = new Date(hoveredSpot.spot.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const tooltipColor = selectedSpot.color || '#38bdf8';
+              const dxCountry = getCountryInfoByCallsign(selectedSpot.spot.dxCall);
+              const spotterCountry = getCountryInfoByCallsign(selectedSpot.spot.spotterCall);
+              const time = new Date(selectedSpot.spot.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
               return (
                 <>
                   <div 
@@ -1248,13 +1300,27 @@ export default function App() {
                   >
                     <div className="flex items-center gap-2">
                       <span>Spot Details</span>
-                      {hoveredSpot.spot.isManual && (
+                      {selectedSpot.spot.isManual && (
                         <span className="bg-yellow-500/20 text-yellow-500 text-[9px] px-1.5 py-0.5 rounded border border-yellow-500/30 animate-pulse font-normal">
                           MANUELL
                         </span>
                       )}
                     </div>
-                    <span className="text-white/50 font-mono text-[11px] font-normal">{time} UTC</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/50 font-mono text-[11px] font-normal">{time} UTC</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedSpot(null);
+                          setShowTooltipHistory(false);
+                        }}
+                        className="text-text-dim hover:text-white p-0.5 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                        title="Schließen (Esc)"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-3.5 text-[14px]">
                     <div>
@@ -1281,7 +1347,7 @@ export default function App() {
                       <div className="flex items-center gap-3 bg-white/5 p-2 rounded-md border border-white/5">
                         <span className="text-3xl shrink-0 leading-none drop-shadow-sm select-none">{dxCountry.flag}</span>
                         <div className="min-w-0 flex-1">
-                          <div className="text-white font-bold text-lg leading-tight truncate">{hoveredSpot.spot.dxCall}</div>
+                          <div className="text-white font-bold text-lg leading-tight truncate">{selectedSpot.spot.dxCall}</div>
                           <div className="text-[12px] text-text-dim truncate mt-0.5">
                             <span className="text-white/90 font-medium">{dxCountry.name}</span>
                             {dxCountry.code && dxCountry.code !== 'UN' && (
@@ -1305,13 +1371,13 @@ export default function App() {
                              style={{ color: tooltipColor, borderColor: hexToRgba(tooltipColor, 0.2) }}>
                           <span className="flex items-center gap-1.5">
                             <History size={12} />
-                            Letzte 5 Spots ({hoveredSpot.spot.dxCall})
+                            Letzte 5 Spots ({selectedSpot.spot.dxCall})
                           </span>
                           <span className="text-[10px] opacity-70 font-mono">Alle Bänder</span>
                         </div>
                         {(() => {
                           const historySpots = spots
-                            .filter(s => s.dxCall.toUpperCase() === hoveredSpot.spot.dxCall.toUpperCase())
+                            .filter(s => s.dxCall.toUpperCase() === selectedSpot.spot.dxCall.toUpperCase())
                             .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                             .slice(0, 5);
 
@@ -1328,7 +1394,7 @@ export default function App() {
                               {historySpots.map((histSpot, idx) => {
                                 const hTime = new Date(histSpot.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                                 const band = getBandForFrequency(histSpot.frequency);
-                                const isCurrent = histSpot.id === hoveredSpot.spot.id;
+                                const isCurrent = histSpot.id === selectedSpot.spot.id;
                                 return (
                                   <div 
                                     key={histSpot.id || idx}
@@ -1367,7 +1433,7 @@ export default function App() {
                        <div className="bg-white/2 pb-1 border-b border-white/5">
                          <div className="text-text-dim text-[11px] uppercase tracking-wider">Frequenz</div>
                          <div className="font-mono text-lg font-bold" style={{ color: tooltipColor }}>
-                           {(hoveredSpot.spot.frequency * 1000).toFixed(1)} kHz
+                           {(selectedSpot.spot.frequency * 1000).toFixed(1)} kHz
                          </div>
                        </div>
                        <div className="bg-white/2 pb-1 border-b border-white/5">
@@ -1376,13 +1442,32 @@ export default function App() {
                        </div>
                     </div>
 
-                    {hoveredSpot.spot.locator && (
-                      <div className="bg-white/5 border border-white/10 rounded-lg p-2.5 space-y-2">
+                    {selectedSpot.spot.locator && (
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-2.5 space-y-2.5">
                         <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
-                          <span className="text-text-dim text-[11px] uppercase tracking-wider font-semibold flex items-center gap-1.5">
-                            <Compass size={13} style={{ color: tooltipColor }} />
-                            QTH Locator
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-text-dim text-[11px] uppercase tracking-wider font-semibold flex items-center gap-1.5">
+                              <Compass size={13} style={{ color: tooltipColor }} />
+                              QTH Locator
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                saveConfig({ ...config, showSpotMap: config.showSpotMap !== false ? false : true });
+                              }}
+                              title={config.showSpotMap !== false ? "Karte verbergen" : "Karte anzeigen"}
+                              className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded transition-all cursor-pointer border active:scale-95"
+                              style={{
+                                backgroundColor: config.showSpotMap !== false ? hexToRgba(tooltipColor, 0.2) : "rgba(255,255,255,0.05)",
+                                borderColor: config.showSpotMap !== false ? hexToRgba(tooltipColor, 0.4) : "rgba(255,255,255,0.1)",
+                                color: config.showSpotMap !== false ? tooltipColor : "#8B949E"
+                              }}
+                            >
+                              <MapIcon size={10} />
+                              <span>{config.showSpotMap !== false ? "Karte an" : "Karte aus"}</span>
+                            </button>
+                          </div>
                           <span 
                             className="font-mono font-bold text-base px-2 py-0.5 rounded tracking-wider"
                             style={{
@@ -1391,19 +1476,33 @@ export default function App() {
                               color: tooltipColor
                             }}
                           >
-                            {hoveredSpot.spot.locator}
+                            {selectedSpot.spot.locator}
                           </span>
                         </div>
-                        {hoveredSpot.spot.distance !== undefined && (
+
+                        {/* Interactive QTH Locator Map */}
+                        {config.showSpotMap !== false && (
+                          <SpotQthMap
+                            ownLocator={config.qthLocator}
+                            ownCallsign={config.clusterCallsign}
+                            dxLocator={selectedSpot.spot.locator}
+                            dxCall={selectedSpot.spot.dxCall}
+                            accentColor={tooltipColor}
+                            distanceKm={selectedSpot.spot.distance}
+                            bearingDeg={selectedSpot.spot.bearing}
+                          />
+                        )}
+
+                        {selectedSpot.spot.distance !== undefined && (
                           <div className="grid grid-cols-2 gap-2 pt-0.5">
                             <div className="bg-black/20 rounded p-2 border border-white/5">
                               <div className="text-text-dim text-[10px] uppercase tracking-wider">Entfernung (QRB)</div>
                               <div className="text-white font-mono font-bold text-base mt-0.5 flex items-baseline gap-1">
-                                <span className="text-lg font-bold" style={{ color: tooltipColor }}>{hoveredSpot.spot.distance}</span>
+                                <span className="text-lg font-bold" style={{ color: tooltipColor }}>{selectedSpot.spot.distance}</span>
                                 <span className="text-[12px] text-text-dim font-normal">km</span>
                               </div>
                             </div>
-                            {hoveredSpot.spot.bearing !== undefined && (
+                            {selectedSpot.spot.bearing !== undefined && (
                               <div className="bg-black/20 rounded p-2 border border-white/5">
                                 <div className="text-text-dim text-[10px] uppercase tracking-wider">Richtung (QTE)</div>
                                 <div className="text-white font-mono font-bold text-base mt-0.5 flex items-center gap-2">
@@ -1417,13 +1516,13 @@ export default function App() {
                                     <ArrowUp 
                                       size={14} 
                                       style={{ 
-                                        transform: `rotate(${hoveredSpot.spot.bearing}deg)`,
+                                        transform: `rotate(${selectedSpot.spot.bearing}deg)`,
                                         color: tooltipColor
                                       }} 
                                     />
                                   </span>
                                   <div className="flex items-baseline gap-0.5">
-                                    <span className="text-lg font-bold" style={{ color: tooltipColor }}>{hoveredSpot.spot.bearing}°</span>
+                                    <span className="text-lg font-bold" style={{ color: tooltipColor }}>{selectedSpot.spot.bearing}°</span>
                                   </div>
                                 </div>
                               </div>
@@ -1437,14 +1536,14 @@ export default function App() {
                       <div className="text-text-dim text-[11px] uppercase tracking-wider mb-1">Spotter</div>
                       <div className="flex items-center gap-2.5 text-[13px]">
                         <span className="text-xl leading-none shrink-0 select-none drop-shadow-xs">{spotterCountry.flag}</span>
-                        <span className="text-white font-semibold font-mono">{hoveredSpot.spot.spotterCall}</span>
+                        <span className="text-white font-semibold font-mono">{selectedSpot.spot.spotterCall}</span>
                         <span className="text-[12px] text-text-dim truncate">
                           ({spotterCountry.name})
                         </span>
                       </div>
                     </div>
 
-                    {hoveredSpot.spot.info && (
+                    {selectedSpot.spot.info && (
                       <div 
                         className="p-2 rounded-md text-[12px] text-text-main italic leading-relaxed"
                         style={{
@@ -1453,7 +1552,7 @@ export default function App() {
                           borderLeft: `4px solid ${tooltipColor}`
                         }}
                       >
-                        "{hoveredSpot.spot.info}"
+                        "{selectedSpot.spot.info}"
                       </div>
                     )}
                   </div>

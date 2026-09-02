@@ -41,7 +41,8 @@ async function startServer() {
     clusterCallsign: "DF0OT",
     qthLocator: "JO62VO",
     showFlags: true,
-    alertSound: true
+    alertSound: true,
+    showSpotMap: true
   };
 
   if (!fs.existsSync(CONFIG_FILE)) {

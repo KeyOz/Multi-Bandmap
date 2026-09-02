@@ -31,6 +31,7 @@ export interface AppConfig {
   qthLocator: string;
   showFlags?: boolean;
   alertSound?: boolean;
+  showSpotMap?: boolean;
 }
 
 export const BAND_FREQUENCIES: Record<string, { min: number, max: number }> = {
