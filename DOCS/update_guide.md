@@ -1,6 +1,6 @@
-# Update-Anleitung: Von Version 0.2.3 auf die aktuelle Version (0.3.1)
+# Update-Anleitung: Von Version 0.2.3 auf die aktuelle Version (0.3.2)
 
-Diese Anleitung beschreibt Schritt für Schritt, wie Sie eine bestehende Installation der **Multi-Bandmap** (z. B. auf einem Linux-Server, Raspberry Pi oder in einem Proxmox LXC-Container unter `/opt/dx-control`) von Version **0.2.3** auf die aktuelle Version **0.3.1** aktualisieren.
+Diese Anleitung beschreibt Schritt für Schritt, wie Sie eine bestehende Installation der **Multi-Bandmap** (z. B. auf einem Linux-Server, Raspberry Pi oder in einem Proxmox LXC-Container unter `/opt/dx-control`) von Version **0.2.3** auf die aktuelle Version **0.3.2** aktualisieren.
 
 ---
 

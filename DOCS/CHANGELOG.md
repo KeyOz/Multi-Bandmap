@@ -4,6 +4,13 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei festgehalten
 
 ---
 
+## [0.3.2] - 2026-09-02
+### Hinzugefügt
+- **Kanalspezifischer Kontinent-Filter**: Jeder Kanal kann nun gezielt nach Kontinenten (EU, NA, SA, AS, AF, OC, AN) gefiltert werden (z. B. nur Europa für UKW-Bänder 2m/70cm). Schnellauswahl-Presets für „Nur Europa (UKW)“, „Europa & Nordamerika“ und „Alle Kontinente“. Einstellbar auf DX-Station, Spotter oder beide.
+- **Kanal-Verwaltung & Konfigurations-Modal**: Neues Menü „Kanäle“ in der oberen Leiste mit Spalten-Sichtbarkeitsschaltern und Schnellaktionen. Ausführliches Konfigurationsfenster mit Reitern für jeden Kanal.
+- **Vektorbasierte Landesflaggen (Windows-Unterstützung)**: Umstellung von systemabhängigen Unicode-Schriftart-Emojis auf scharfe Vektor-SVG-Flaggen (`CountryFlag`). Dadurch werden Landesflaggen auch unter Windows 10/11 stets als bunte Grafiken anstelle von Textkürzeln dargestellt.
+- **Aktive Filter-Badges**: Direktes Feedback im Spaltenkopf über aktive Kontinent-Filter mit 1-Klick-Öffnen der Kanaleinstellungen und Hinweisen bei gefilterten Spots.
+
 ## [0.3.1] - 2026-08-30
 ### Hinzugefügt
 - **Akustischer Hinweiston bei Spot-Alarm**: Neue Option in den Einstellungen mit Test-Button zum Abspielen eines dezenten, zweistimmigen Chimes beim Aktivieren einer Alarm-Markierung (Glocken-Icon).

@@ -1,6 +1,7 @@
 import React from "react";
 import { ColumnConfig, BAND_FREQUENCIES, HAM_BANDS, CONTINENTS, DxSpot } from "../types";
 import { getContinentByCallsign } from "../dxcc";
+import { CountryFlag } from "./CountryFlag";
 import { 
   X, 
   Eye, 
@@ -296,7 +297,7 @@ export const ChannelConfigModal: React.FC<ChannelConfigModalProps> = ({
                         : "bg-brand-elevated text-white border-brand-border hover:border-brand-accent/50 hover:bg-white/5"
                     }`}
                   >
-                    <span>🇪🇺</span>
+                    <CountryFlag countryCode="EU" fallbackEmoji="🇪🇺" size="xs" />
                     <span>Nur Europa (UKW)</span>
                     {allowed.length === 1 && allowed[0] === "EU" && <Check size={12} className="stroke-[3]" />}
                   </button>
@@ -356,7 +357,13 @@ export const ChannelConfigModal: React.FC<ChannelConfigModalProps> = ({
                         }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[14px] leading-none">{cont.flag}</span>
+                          <CountryFlag 
+                            countryCode={cont.code === "EU" ? "EU" : undefined}
+                            fallbackEmoji={cont.flag}
+                            title={cont.name}
+                            size="sm"
+                            className="rounded-xs"
+                          />
                           <div className="min-w-0">
                             <div className="text-[11px] font-bold truncate leading-tight">
                               {cont.name}

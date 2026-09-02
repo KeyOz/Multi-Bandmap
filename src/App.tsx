@@ -30,6 +30,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { SpotQthMap } from "./components/SpotQthMap";
 import { ChannelConfigModal } from "./components/ChannelConfigModal";
+import { CountryFlag } from "./components/CountryFlag";
 
 // --- Color Helpers & Presets ---
 
@@ -560,10 +561,15 @@ const BandColumn: React.FC<BandColumnProps> = ({
                         <div className="flex items-center gap-1.5 min-w-0 leading-none">
                           {showFlags && (
                             <span 
-                              className="hidden sm:inline-block text-lg leading-none shrink-0 select-none drop-shadow-xs" 
+                              className="hidden sm:inline-flex items-center shrink-0 select-none" 
                               title={dxCountry.code && dxCountry.code !== 'UN' ? `${dxCountry.name} (${dxCountry.code})` : dxCountry.name}
                             >
-                              {dxCountry.flag}
+                              <CountryFlag 
+                                countryCode={dxCountry.code} 
+                                fallbackEmoji={dxCountry.flag} 
+                                title={dxCountry.name} 
+                                size="sm" 
+                              />
                             </span>
                           )}
                           <span 
@@ -934,7 +940,7 @@ export default function App() {
     <div className="h-screen bg-brand-bg flex items-center justify-center font-mono text-[11px] uppercase tracking-[0.2em] text-brand-accent">
       <div className="flex items-center gap-3">
         <Radio size={20} className="animate-spin" />
-        BOOTING MULTI-BANDMAP SYSTEM v0.3.1...
+        BOOTING MULTI-BANDMAP SYSTEM v0.3.2...
       </div>
     </div>
   );
@@ -948,7 +954,7 @@ export default function App() {
             <Radio size={16} className="text-brand-accent" />
             <div className="flex items-baseline gap-1.5">
               <h1 className="font-bold tracking-widest text-brand-accent uppercase text-[13px]">Multi-Bandmap</h1>
-              <span className="text-[9px] font-mono text-text-dim opacity-60">v0.3.1</span>
+              <span className="text-[9px] font-mono text-text-dim opacity-60">v0.3.2</span>
             </div>
           </div>
           
@@ -1580,7 +1586,13 @@ export default function App() {
                         </button>
                       </div>
                       <div className="flex items-center gap-3 bg-white/5 p-2 rounded-md border border-white/5">
-                        <span className="text-3xl shrink-0 leading-none drop-shadow-sm select-none">{dxCountry.flag}</span>
+                        <CountryFlag 
+                          countryCode={dxCountry.code} 
+                          fallbackEmoji={dxCountry.flag} 
+                          title={dxCountry.name} 
+                          size="lg" 
+                          className="rounded"
+                        />
                         <div className="min-w-0 flex-1">
                           <div className="text-white font-bold text-lg leading-tight truncate">{selectedSpot.spot.dxCall}</div>
                           <div className="text-[12px] text-text-dim truncate mt-0.5">
@@ -1770,7 +1782,13 @@ export default function App() {
                     <div className="bg-white/2 rounded p-2 border border-white/5">
                       <div className="text-text-dim text-[11px] uppercase tracking-wider mb-1">Spotter</div>
                       <div className="flex items-center gap-2.5 text-[13px]">
-                        <span className="text-xl leading-none shrink-0 select-none drop-shadow-xs">{spotterCountry.flag}</span>
+                        <CountryFlag 
+                          countryCode={spotterCountry.code} 
+                          fallbackEmoji={spotterCountry.flag} 
+                          title={spotterCountry.name} 
+                          size="md" 
+                          className="rounded-xs"
+                        />
                         <span className="text-white font-semibold font-mono">{selectedSpot.spot.spotterCall}</span>
                         <span className="text-[12px] text-text-dim truncate">
                           ({spotterCountry.name})
