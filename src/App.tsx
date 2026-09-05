@@ -260,7 +260,7 @@ const BandColumn: React.FC<BandColumnProps> = ({
   return (
     <motion.div 
       layout
-      className="flex flex-col h-full border-r border-brand-border bg-brand-bg relative flex-1 min-w-[220px] sm:min-w-[245px] lg:min-w-[260px] group shrink-0"
+      className="flex flex-col h-full border-r border-brand-border bg-brand-bg relative flex-1 min-w-[230px] sm:min-w-[255px] lg:min-w-[270px] group shrink-0"
       style={{
         borderTop: `3px solid ${accentColor}`
       }}
@@ -467,7 +467,7 @@ const BandColumn: React.FC<BandColumnProps> = ({
             <tr className="text-text-dim border-b border-brand-border text-[10px] tracking-tighter">
               <th className="text-left font-normal pb-1.5 pl-1 w-[86px] sm:w-[92px] lg:w-[98px]">MHZ</th>
               <th className="text-left font-normal pb-1.5 px-1">DX-STATION</th>
-              <th className="text-right font-normal pb-1.5 pr-1 w-[68px] sm:w-[92px] lg:w-[115px]">RICHT. / LOC</th>
+              <th className="text-right font-normal pb-1.5 pr-1 w-[80px] sm:w-[105px] lg:w-[125px]">RICHT. / LOC</th>
             </tr>
           </thead>
           <tbody className="text-gray-300">
@@ -621,51 +621,59 @@ const BandColumn: React.FC<BandColumnProps> = ({
                         </div>
                       </td>
 
-                      {/* Richtung (QTE), Entfernung (QRB) & Locator: Entfernung erst ab md sichtbar, Richtung immer sichtbar */}
+                      {/* Richtung (QTE, 5px größer), Entfernung (QRB) & Locator (übereinander gestapelt) */}
                       <td className="py-1.5 pr-1 pl-1 text-right align-middle font-mono whitespace-nowrap">
                         {item.bearing !== undefined ? (
-                          <div className="flex flex-col items-end gap-1 my-0.5 leading-none">
-                            {/* Zeile 1: Richtung & Entfernung (Entfernung nur ab sm/md) */}
-                            <div className="flex items-center justify-end gap-1.5">
-                              {item.distance !== undefined && (
-                                <span className="hidden md:inline-block text-white/80 text-[11px] font-semibold">
-                                  {item.distance} <span className="text-[9px] text-text-dim font-normal">km</span>
-                                </span>
-                              )}
-                              <span 
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold shrink-0 shadow-xs" 
-                                style={{
-                                  backgroundColor: hexToRgba(accentColor, 0.18),
-                                  border: `1px solid ${hexToRgba(accentColor, 0.38)}`,
-                                  color: accentColor
-                                }}
-                                title={`Richtung (QTE): ${item.bearing}°${item.distance !== undefined ? ` | ${item.distance} km` : ''}${item.locator ? ` | Locator: ${item.locator}` : ''}`}
-                              >
-                                <ArrowUp 
-                                  size={12} 
-                                  className="shrink-0" 
-                                  style={{ 
-                                    transform: `rotate(${item.bearing}deg)`,
-                                    color: accentColor 
-                                  }} 
-                                />
-                                <span>{item.bearing}°</span>
-                              </span>
-                            </div>
-                            {/* Zeile 2: Locator (falls vorhanden) */}
-                            {item.locator && (
-                              <div className="flex items-center justify-end">
-                                <span className="text-white/70 font-mono text-[10px] bg-white/5 px-1 py-0.5 rounded border border-white/10 tracking-wider">
-                                  {item.locator}
-                                </span>
+                          <div className="flex items-center justify-end gap-1.5 my-0.5">
+                            {/* Locator und Entfernung übereinander gestapelt */}
+                            {(item.locator || item.distance !== undefined) && (
+                              <div className="flex flex-col items-end justify-center leading-none gap-0.5 shrink-0">
+                                {item.locator && (
+                                  <span className="text-white/80 font-mono text-[10px] bg-white/5 px-1 py-0.5 rounded border border-white/10 tracking-wider leading-none">
+                                    {item.locator}
+                                  </span>
+                                )}
+                                {item.distance !== undefined && (
+                                  <span className="text-white/75 font-mono text-[10px] font-semibold leading-none">
+                                    {item.distance} <span className="text-[8px] text-text-dim font-normal">km</span>
+                                  </span>
+                                )}
                               </div>
                             )}
-                          </div>
-                        ) : item.locator ? (
-                          <div className="flex flex-col items-end gap-0.5 my-0.5 leading-none">
-                            <span className="text-white font-mono text-[11px] bg-white/5 px-1.5 py-0.5 rounded border border-white/10 tracking-wider">
-                              {item.locator}
+
+                            {/* Richtung (QTE) - 5 Pixel größer: Arrow 17px, Text 16px */}
+                            <span 
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[16px] font-bold shrink-0 shadow-xs leading-none" 
+                              style={{
+                                backgroundColor: hexToRgba(accentColor, 0.18),
+                                border: `1px solid ${hexToRgba(accentColor, 0.38)}`,
+                                color: accentColor
+                              }}
+                              title={`Richtung (QTE): ${item.bearing}°${item.distance !== undefined ? ` | ${item.distance} km` : ''}${item.locator ? ` | Locator: ${item.locator}` : ''}`}
+                            >
+                              <ArrowUp 
+                                size={17} 
+                                className="shrink-0 stroke-[2.5]" 
+                                style={{ 
+                                  transform: `rotate(${item.bearing}deg)`,
+                                  color: accentColor 
+                                }} 
+                              />
+                              <span>{item.bearing}°</span>
                             </span>
+                          </div>
+                        ) : (item.locator || item.distance !== undefined) ? (
+                          <div className="flex flex-col items-end justify-center leading-none gap-0.5 my-0.5">
+                            {item.locator && (
+                              <span className="text-white font-mono text-[11px] bg-white/5 px-1.5 py-0.5 rounded border border-white/10 tracking-wider leading-none">
+                                {item.locator}
+                              </span>
+                            )}
+                            {item.distance !== undefined && (
+                              <span className="text-white/75 font-mono text-[10px] font-semibold leading-none">
+                                {item.distance} <span className="text-[8px] text-text-dim font-normal">km</span>
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="opacity-20 text-[12px]">-</span>

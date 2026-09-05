@@ -11,6 +11,9 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei festgehalten
 - **Vektorbasierte Landesflaggen (Windows-Unterstützung)**: Umstellung von systemabhängigen Unicode-Schriftart-Emojis auf scharfe Vektor-SVG-Flaggen (`CountryFlag`). Dadurch werden Landesflaggen auch unter Windows 10/11 stets als bunte Grafiken anstelle von Textkürzeln dargestellt.
 - **Aktive Filter-Badges**: Direktes Feedback im Spaltenkopf über aktive Kontinent-Filter mit 1-Klick-Öffnen der Kanaleinstellungen und Hinweisen bei gefilterten Spots.
 
+### Verbessert
+- **Richtungsanzeige (QTE) vergrößert & kompakte Ausrichtung**: Die Richtungsanzeige (Pfeilsymbol und Gradangabe) in den Band-Spalten wurde um 5 Pixel vergrößert (17px Pfeil, 16px Schriftgröße) für optimale Ablesbarkeit. Um horizontalen Platz zu schaffen, werden Maidenhead-Locator und Entfernung (QRB in km) nun platzsparend übereinander gestapelt links neben der vergrößerten Richtungsplakette dargestellt.
+
 ### Behoben
 - **Einstellungsfenster (Klick auf Eingabefelder)**: Behoben, dass sich das Einstellungs-Dropdown bei Klick in ein Eingabefeld (Host, Port, Login, QTH-Locator) sofort schloss. Der Dropdown-Container wurde mit `data-dropdown="true"` versehen, die Event-Weiterleitung abgesichert und ein zusätzlicher Speichern-Button sowie Bestätigung per Enter-Taste ergänzt.
 
