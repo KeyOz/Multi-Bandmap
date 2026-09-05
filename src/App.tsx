@@ -1100,7 +1100,11 @@ export default function App() {
             {/* Anzeige Menü */}
             <div className="relative" data-dropdown="true">
               <button 
-                onClick={() => setShowAnzeigeMenu(!showAnzeigeMenu)}
+                onClick={() => {
+                  setShowAnzeigeMenu(!showAnzeigeMenu);
+                  setShowChannelsMenu(false);
+                  setShowSettingsMenu(false);
+                }}
                 className={`text-[12px] px-3 py-1 rounded transition-all flex items-center gap-1.5 ${showAnzeigeMenu ? 'bg-brand-elevated text-brand-accent' : 'hover:bg-brand-elevated text-text-dim hover:text-text-main'}`}
               >
                 Anzeige <ChevronDown size={12} className={showAnzeigeMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />
@@ -1195,13 +1199,17 @@ export default function App() {
             CLUSTER: {clusterStatus}
           </div>
           
-          <div className="relative">
+          <div className="relative" data-dropdown="true">
             <button 
+              type="button"
               onClick={() => {
                 setShowSettingsMenu(!showSettingsMenu);
+                setShowAnzeigeMenu(false);
+                setShowChannelsMenu(false);
                 setDidConfirmReset(false);
               }}
               className={`text-text-dim hover:text-white transition-colors ${showSettingsMenu ? 'text-brand-accent' : ''}`}
+              title="System-Einstellungen"
             >
               <Settings size={16} />
             </button>
@@ -1212,7 +1220,8 @@ export default function App() {
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 5 }}
-                  className="absolute right-0 mt-2 w-64 bg-brand-surface border border-brand-border rounded shadow-2xl p-3 z-50 space-y-3"
+                  className="absolute right-0 mt-2 w-80 bg-brand-surface border border-brand-border rounded shadow-2xl p-3 z-50 space-y-3"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <div className="text-[10px] uppercase font-bold text-text-dim border-b border-brand-border pb-1.5 flex items-center gap-1.5">
                     <Clock size={12} /> System-Konfiguration
@@ -1242,10 +1251,23 @@ export default function App() {
                       <label className="text-[9px] text-text-dim">Host / URL</label>
                       <input 
                         type="text"
-                        className="w-full bg-brand-elevated border border-brand-border rounded px-2 py-1 text-[11px] text-white focus:border-brand-accent outline-none"
+                        className="w-full bg-brand-elevated border border-brand-border rounded px-2.5 py-1 text-[11px] text-white focus:border-brand-accent outline-none"
                         value={config.clusterHost || ""}
-                        onChange={(e) => setConfig({...config, clusterHost: e.target.value})}
-                        onBlur={() => saveConfig(config)}
+                        onChange={(e) => {
+                          const next = { ...config, clusterHost: e.target.value };
+                          setConfig(next);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const next = { ...config, clusterHost: e.target.value };
+                          setConfig(next);
+                          saveConfig(next);
+                        }}
+                        placeholder="z.B. dxc.example.com"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -1253,20 +1275,45 @@ export default function App() {
                         <label className="text-[9px] text-text-dim">Port</label>
                         <input 
                           type="number"
-                          className="w-full bg-brand-elevated border border-brand-border rounded px-2 py-1 text-[11px] text-white focus:border-brand-accent outline-none"
+                          className="w-full bg-brand-elevated border border-brand-border rounded px-2.5 py-1 text-[11px] text-white focus:border-brand-accent outline-none"
                           value={config.clusterPort || ""}
-                          onChange={(e) => setConfig({...config, clusterPort: parseInt(e.target.value) || 0})}
-                          onBlur={() => saveConfig(config)}
+                          onChange={(e) => {
+                            const next = { ...config, clusterPort: parseInt(e.target.value) || 0 };
+                            setConfig(next);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const next = { ...config, clusterPort: parseInt(e.target.value) || 0 };
+                            setConfig(next);
+                            saveConfig(next);
+                          }}
+                          placeholder="7300"
                         />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[9px] text-text-dim">Login (optional)</label>
                         <input 
                           type="text"
-                          className="w-full bg-brand-elevated border border-brand-border rounded px-2 py-1 text-[11px] text-white focus:border-brand-accent outline-none"
+                          className="w-full bg-brand-elevated border border-brand-border rounded px-2.5 py-1 text-[11px] text-white focus:border-brand-accent outline-none uppercase font-mono"
                           value={config.clusterCallsign || ""}
-                          onChange={(e) => setConfig({...config, clusterCallsign: e.target.value.toUpperCase()})}
-                          onBlur={() => saveConfig(config)}
+                          onChange={(e) => {
+                            const next = { ...config, clusterCallsign: e.target.value.toUpperCase() };
+                            setConfig(next);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const next = { ...config, clusterCallsign: e.target.value.toUpperCase() };
+                            setConfig(next);
+                            saveConfig(next);
+                          }}
                           placeholder="z.B. DF0OT"
                         />
                       </div>
@@ -1275,12 +1322,34 @@ export default function App() {
                       <label className="text-[9px] text-text-dim">Eigener QTH Locator</label>
                       <input 
                         type="text"
-                        className="w-full bg-brand-elevated border border-brand-border rounded px-2 py-1 text-[11px] text-white focus:border-brand-accent outline-none uppercase font-mono"
+                        className="w-full bg-brand-elevated border border-brand-border rounded px-2.5 py-1 text-[11px] text-white focus:border-brand-accent outline-none uppercase font-mono"
                         value={config.qthLocator || ""}
-                        onChange={(e) => setConfig({...config, qthLocator: e.target.value.toUpperCase()})}
-                        onBlur={() => saveConfig(config)}
+                        onChange={(e) => {
+                          const next = { ...config, qthLocator: e.target.value.toUpperCase() };
+                          setConfig(next);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const next = { ...config, qthLocator: e.target.value.toUpperCase() };
+                          setConfig(next);
+                          saveConfig(next);
+                        }}
                         placeholder="z.B. JO62VO"
                       />
+                    </div>
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => saveConfig(config)}
+                        className="px-2.5 py-1 text-[10px] font-bold bg-brand-accent/15 hover:bg-brand-accent/25 text-brand-accent border border-brand-accent/30 rounded transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                      >
+                        <Check size={11} />
+                        <span>Speichern</span>
+                      </button>
                     </div>
                   </div>
 
