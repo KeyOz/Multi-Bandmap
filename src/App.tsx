@@ -25,7 +25,9 @@ import {
   Filter,
   Sliders,
   Sparkles,
-  RotateCcw
+  RotateCcw,
+  CheckCircle2,
+  XCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { SpotQthMap } from "./components/SpotQthMap";
@@ -140,7 +142,7 @@ interface BandColumnProps {
   onToggleAlert?: (key: string) => void;
   onUpdate: (id: string, updates: Partial<ColumnConfig>) => void;
   onHide: (id: string) => void;
-  onSelectSpot: (spot: DxSpot, e: React.MouseEvent, color?: string) => void;
+  onSelectSpot: (spot: DxSpot, e: React.MouseEvent, color?: string, band?: string) => void;
   onOpenSettings?: (id: string) => void;
 }
 
@@ -507,7 +509,7 @@ const BandColumn: React.FC<BandColumnProps> = ({
                       ref={isClosest ? activeRowRef : null}
                       data-spot-row="true"
                       onClick={(e) => {
-                        onSelectSpot(item, e, accentColor);
+                        onSelectSpot(item, e, accentColor, config.band);
                       }}
                       onMouseEnter={() => {
                         setHoveredRowId(item.dxCall);
@@ -703,7 +705,7 @@ export default function App() {
   const [consoleHeight, setConsoleHeight] = useState(180);
   const [spots, setSpots] = useState<DxSpot[]>([]);
   const [workedQSOs, setWorkedQSOs] = useState<Record<string, string[]>>({});
-  const [selectedSpot, setSelectedSpot] = useState<{ spot: DxSpot, x: number, y: number, color?: string } | null>(null);
+  const [selectedSpot, setSelectedSpot] = useState<{ spot: DxSpot, x: number, y: number, color?: string, band?: string } | null>(null);
   const [showTooltipHistory, setShowTooltipHistory] = useState(false);
   const [alertedSpotKeys, setAlertedSpotKeys] = useState<Set<string>>(new Set());
   const consoleRef = useRef<HTMLDivElement>(null);
@@ -912,7 +914,53 @@ export default function App() {
     setDidConfirmReset(false);
   };
 
-  const handleSelectSpot = (spot: DxSpot, e: React.MouseEvent, color?: string) => {
+  const handleToggleWorkedStation = async (call: string, band: string, currentlyWorked: boolean) => {
+    const normalizedCall = call.trim().toUpperCase();
+    const targetWorkedState = !currentlyWorked;
+
+    // Optimistic UI update
+    setWorkedQSOs(prev => {
+      const next = { ...prev };
+      const currentList = next[band] ? [...next[band]] : [];
+      if (targetWorkedState) {
+        if (!currentList.includes(normalizedCall)) {
+          currentList.push(normalizedCall);
+        }
+      } else {
+        const idx = currentList.indexOf(normalizedCall);
+        if (idx !== -1) {
+          currentList.splice(idx, 1);
+        }
+      }
+      next[band] = currentList;
+      return next;
+    });
+
+    try {
+      const res = await fetch("/api/qso/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          band,
+          call: normalizedCall,
+          worked: targetWorkedState
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.workedCalls) {
+          setWorkedQSOs(prev => ({
+            ...prev,
+            [band]: data.workedCalls
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to toggle worked station:", err);
+    }
+  };
+
+  const handleSelectSpot = (spot: DxSpot, e: React.MouseEvent, color?: string, band?: string) => {
     // If clicking the currently selected spot, toggle it closed
     if (selectedSpot && selectedSpot.spot.dxCall === spot.dxCall && selectedSpot.spot.frequency === spot.frequency) {
       setSelectedSpot(null);
@@ -923,10 +971,11 @@ export default function App() {
     // Position the modal near the clicked spot/mouse, staying safely within viewport bounds
     const width = 360;
     const x = Math.max(10, Math.min(e.clientX + 12, window.innerWidth - width - 16));
-    const y = Math.max(45, Math.min(e.clientY - 20, Math.max(45, window.innerHeight - 520)));
+    const y = Math.max(45, Math.min(e.clientY - 20, Math.max(45, window.innerHeight - 560)));
     
     setShowTooltipHistory(false);
-    setSelectedSpot({ spot, x, y, color: color || '#38bdf8' });
+    const spotBand = band || getBandForFrequency(spot.frequency);
+    setSelectedSpot({ spot, x, y, color: color || '#38bdf8', band: spotBand });
   };
 
   const toggleSpotAlert = (key: string) => {
@@ -1607,6 +1656,8 @@ export default function App() {
               const dxCountry = getCountryInfoByCallsign(selectedSpot.spot.dxCall);
               const spotterCountry = getCountryInfoByCallsign(selectedSpot.spot.spotterCall);
               const time = new Date(selectedSpot.spot.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const spotBand = selectedSpot.band || getBandForFrequency(selectedSpot.spot.frequency);
+              const isSpotWorked = Boolean(workedQSOs[spotBand]?.includes(selectedSpot.spot.dxCall.toUpperCase()));
               return (
                 <>
                   <div 
@@ -1642,8 +1693,20 @@ export default function App() {
                   </div>
                   <div className="space-y-3.5 text-[14px]">
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="text-text-dim text-[11px] uppercase tracking-wider">Station Info</div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="text-text-dim text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                          <span>Station Info</span>
+                          <span 
+                            className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded"
+                            style={{ 
+                              backgroundColor: hexToRgba(tooltipColor, 0.15), 
+                              color: tooltipColor,
+                              border: `1px solid ${hexToRgba(tooltipColor, 0.3)}` 
+                            }}
+                          >
+                            {spotBand}
+                          </span>
+                        </div>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1662,22 +1725,80 @@ export default function App() {
                           <span>Historie</span>
                         </button>
                       </div>
-                      <div className="flex items-center gap-3 bg-white/5 p-2 rounded-md border border-white/5">
-                        <CountryFlag 
-                          countryCode={dxCountry.code} 
-                          fallbackEmoji={dxCountry.flag} 
-                          title={dxCountry.name} 
-                          size="lg" 
-                          className="rounded"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-white font-bold text-lg leading-tight truncate">{selectedSpot.spot.dxCall}</div>
-                          <div className="text-[12px] text-text-dim truncate mt-0.5">
-                            <span className="text-white/90 font-medium">{dxCountry.name}</span>
-                            {dxCountry.code && dxCountry.code !== 'UN' && (
-                              <span className="opacity-60 text-[10px] ml-1.5 font-mono">[{dxCountry.code}]</span>
+                      <div className="bg-white/5 p-2.5 rounded-md border border-white/5 space-y-2.5">
+                        <div className="flex items-center gap-3">
+                          <CountryFlag 
+                            countryCode={dxCountry.code} 
+                            fallbackEmoji={dxCountry.flag} 
+                            title={dxCountry.name} 
+                            size="lg" 
+                            className="rounded shrink-0"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1.5">
+                              <div className={`font-bold text-lg leading-tight truncate ${isSpotWorked ? 'text-green-400' : 'text-white'}`}>
+                                {selectedSpot.spot.dxCall}
+                              </div>
+                              {isSpotWorked && (
+                                <span className="inline-flex items-center gap-1 font-mono font-bold text-[10px] text-green-400 bg-green-500/15 border border-green-500/30 px-1.5 py-0.5 rounded shrink-0">
+                                  <CheckCircle2 size={11} className="text-green-400" />
+                                  GEARBEITET
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[12px] text-text-dim truncate mt-0.5">
+                              <span className="text-white/90 font-medium">{dxCountry.name}</span>
+                              {dxCountry.code && dxCountry.code !== 'UN' && (
+                                <span className="opacity-60 text-[10px] ml-1.5 font-mono">[{dxCountry.code}]</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Station auf gearbeitet setzen / Status umschalten */}
+                        <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+                          <div className="text-[11px] text-text-dim flex items-center gap-1.5">
+                            <span>QSO ({spotBand}):</span>
+                            {isSpotWorked ? (
+                              <span className="text-green-400 font-semibold flex items-center gap-1">
+                                Geloggt
+                              </span>
+                            ) : (
+                              <span className="text-white/50">
+                                Offen
+                              </span>
                             )}
                           </div>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleWorkedStation(selectedSpot.spot.dxCall, spotBand, isSpotWorked);
+                            }}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold transition-all cursor-pointer shadow-sm active:scale-95 ${
+                              isSpotWorked
+                                ? "bg-red-500/15 hover:bg-red-500/25 text-red-300 hover:text-red-200 border border-red-500/30"
+                                : "bg-green-600/25 hover:bg-green-600/35 text-green-300 hover:text-green-200 border border-green-500/40 hover:border-green-400"
+                            }`}
+                            title={
+                              isSpotWorked
+                                ? `Klicken, um ${selectedSpot.spot.dxCall} auf ${spotBand} wieder als nicht gearbeitet zu markieren`
+                                : `Klicken, um ${selectedSpot.spot.dxCall} manuell als auf ${spotBand} gearbeitet (Worked QSO) zu setzen`
+                            }
+                          >
+                            {isSpotWorked ? (
+                              <>
+                                <XCircle size={13} className="shrink-0" />
+                                <span>Status aufheben</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 size={13} className="shrink-0 text-green-400" />
+                                <span>Als gearbeitet setzen</span>
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
                     </div>

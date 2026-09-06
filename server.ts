@@ -399,6 +399,45 @@ async function startServer() {
     });
   });
 
+  // Toggle or explicitly set worked status for a callsign on a band
+  app.post("/api/qso/toggle", (req, res) => {
+    const { band, call, worked } = req.body || {};
+    const bandName = (band || "").trim();
+    const callsign = (call || "").trim().toUpperCase();
+
+    if (!bandName || !callsign) {
+      return res.status(400).json({ error: "band and call are required parameters" });
+    }
+
+    if (!workedQSOs[bandName]) {
+      workedQSOs[bandName] = [];
+    }
+
+    const isCurrentlyWorked = workedQSOs[bandName].includes(callsign);
+    const shouldBeWorked = worked !== undefined ? Boolean(worked) : !isCurrentlyWorked;
+
+    if (shouldBeWorked && !isCurrentlyWorked) {
+      workedQSOs[bandName].push(callsign);
+      saveWorkedQSOs();
+      console.log(`[API] QSO Marked as Worked: ${callsign} on ${bandName}`);
+      broadcast({ type: "qso:update", workedQSOs });
+    } else if (!shouldBeWorked && isCurrentlyWorked) {
+      workedQSOs[bandName] = workedQSOs[bandName].filter(c => c !== callsign);
+      saveWorkedQSOs();
+      console.log(`[API] QSO Unmarked from Worked: ${callsign} on ${bandName}`);
+      broadcast({ type: "qso:update", workedQSOs });
+    }
+
+    res.json({
+      success: true,
+      band: bandName,
+      call: callsign,
+      worked: shouldBeWorked,
+      totalOnBand: workedQSOs[bandName].length,
+      workedCalls: workedQSOs[bandName]
+    });
+  });
+
   app.post("/api/qso/reset", (req, res) => {
     workedQSOs = {};
     saveWorkedQSOs();
