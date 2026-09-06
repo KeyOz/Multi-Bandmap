@@ -1,6 +1,6 @@
-# Update-Anleitung: Von Version 0.2.3 auf die aktuelle Version (0.3.2)
+# Update-Anleitung: Von Version 0.2.3 auf die aktuelle Version (0.3.3)
 
-Diese Anleitung beschreibt Schritt für Schritt, wie Sie eine bestehende Installation der **Multi-Bandmap** (z. B. auf einem Linux-Server, Raspberry Pi oder in einem Proxmox LXC-Container unter `/opt/dx-control`) von Version **0.2.3** auf die aktuelle Version **0.3.2** aktualisieren.
+Diese Anleitung beschreibt Schritt für Schritt, wie Sie eine bestehende Installation der **Multi-Bandmap** (z. B. auf einem Linux-Server, Raspberry Pi oder in einem Proxmox LXC-Container unter `/opt/dx-control`) von Version **0.2.3** auf die aktuelle Version **0.3.3** aktualisieren.
 
 ---
 
@@ -118,7 +118,7 @@ systemctl status dx-control
 ### Schritt 8: Browser-Cache leeren & Funktionstest
 1. Öffnen Sie die Web-App in Ihrem Browser (`http://<SERVER-IP>:3000`).
 2. Führen Sie einen **Hard Refresh** im Browser durch (**Strg + F5** bzw. **Cmd + Shift + R**), damit die neuen JavaScript-Bundles und Styles geladen werden.
-3. Prüfen Sie oben links die Versionsnummer: Es sollte nun **v0.3.0** angezeigt werden.
+3. Prüfen Sie oben links die Versionsnummer: Es sollte nun **v0.3.3** angezeigt werden.
 4. **QTH-Locator eintragen:** Öffnen Sie oben rechts das ⚙️ **Einstellungen**-Menü und tragen Sie Ihren eigenen QTH-Locator (z. B. `JO62QJ`) ein.
 5. **Farben anpassen:** Klicken Sie im Kopf einer beliebigen Band-Spalte auf das neue Farbfeld-Symbol, um Ihre Wunsch-Akzentfarbe für dieses Band festzulegen.
 

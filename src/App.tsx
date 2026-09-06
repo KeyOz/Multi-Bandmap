@@ -997,7 +997,7 @@ export default function App() {
     <div className="h-screen bg-brand-bg flex items-center justify-center font-mono text-[11px] uppercase tracking-[0.2em] text-brand-accent">
       <div className="flex items-center gap-3">
         <Radio size={20} className="animate-spin" />
-        BOOTING MULTI-BANDMAP SYSTEM v0.3.2...
+        BOOTING MULTI-BANDMAP SYSTEM v0.3.3...
       </div>
     </div>
   );
@@ -1011,7 +1011,7 @@ export default function App() {
             <Radio size={16} className="text-brand-accent" />
             <div className="flex items-baseline gap-1.5">
               <h1 className="font-bold tracking-widest text-brand-accent uppercase text-[13px]">Multi-Bandmap</h1>
-              <span className="text-[9px] font-mono text-text-dim opacity-60">v0.3.2</span>
+              <span className="text-[9px] font-mono text-text-dim opacity-60">v0.3.3</span>
             </div>
           </div>
           

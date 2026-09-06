@@ -4,9 +4,13 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei festgehalten
 
 ---
 
+## [0.3.3] - 2026-09-06
+### Hinzugefügt
+- **Manuelles Setzen und Aufheben des „Gearbeitet“-Status (Worked QSO) in der Detailansicht**: In der Spot-Detailansicht (Klick auf einen Spot) gibt es nun eine dedizierte Schaltfläche „Als gearbeitet setzen“ bzw. „Status aufheben“ mit automatischer Erkennung des jeweiligen Bandes (z. B. 2m, 20m). Der Status („Offen“ vs. „Geloggt“) sowie ein optisches `GEARBEITET`-Badge werden direkt angezeigt.
+- **Neuer API-Endpunkt `/api/qso/toggle`**: Ermöglicht das gezielte Setzen, Umschalten und Zurücknehmen des Worked-Status einzelner Rufzeichen pro Band mit sofortiger WebSocket-Synchronisation an alle verbundenen Clients und persistenter Speicherung in `worked_qsos.json`.
+
 ## [0.3.2] - 2026-09-02
 ### Hinzugefügt
-- **Manuelles Setzen des „Gearbeitet“-Status (Worked QSO) in der Detailansicht**: In der Spot-Detailansicht wurde eine dedizierte Schaltfläche „Als gearbeitet setzen“ integriert. Falls ein QSO vom Logprogramm einmal nicht automatisch registriert wurde, kann eine Station nun mit einem Klick manuell auf dem jeweiligen Band als gearbeitet geloggt werden. Der Status wird mit Bandbezug visualisiert („Offen“ vs. „Geloggt“ samt grünem GEARBEITET-Badge). Bei Bedarf kann der Status über „Status aufheben“ ebenso unkompliziert wieder zurückgesetzt werden.
 - **Kanalspezifischer Kontinent-Filter**: Jeder Kanal kann nun gezielt nach Kontinenten (EU, NA, SA, AS, AF, OC, AN) gefiltert werden (z. B. nur Europa für UKW-Bänder 2m/70cm). Schnellauswahl-Presets für „Nur Europa (UKW)“, „Europa & Nordamerika“ und „Alle Kontinente“. Einstellbar auf DX-Station, Spotter oder beide.
 - **Kanal-Verwaltung & Konfigurations-Modal**: Neues Menü „Kanäle“ in der oberen Leiste mit Spalten-Sichtbarkeitsschaltern und Schnellaktionen. Ausführliches Konfigurationsfenster mit Reitern für jeden Kanal.
 - **Vektorbasierte Landesflaggen (Windows-Unterstützung)**: Umstellung von systemabhängigen Unicode-Schriftart-Emojis auf scharfe Vektor-SVG-Flaggen (`CountryFlag`). Dadurch werden Landesflaggen auch unter Windows 10/11 stets als bunte Grafiken anstelle von Textkürzeln dargestellt.
